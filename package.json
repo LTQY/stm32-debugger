@@ -1,0 +1,161 @@
+{
+	"name": "stm32-debugger",
+	"displayName": "STM32-Debugger",
+	"description": "STM32 debugger",
+	"author": {
+		"name": "CL",
+		"email": "2584456014@qq.com"
+	},
+	"publisher": "CL",
+	"version": "0.0.1",
+	"engines": {
+		"vscode": "^1.36.0"
+	},
+	"icon": "res/icons/icon.png",
+	"license": "MIT",
+	"categories": [
+		"Debuggers"
+	],
+	"activationEvents": [
+		"*"
+	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/github0null/stm32-debugger.git"
+	},
+	"main": "./out/extension.js",
+	"preview": true,
+	"contributes": {
+		"commands": [
+			{
+				"command": "Config.change.property",
+				"enablement": "view == STM32-launch-config-manager",
+				"title": "modify property",
+				"icon": {
+					"light": "./res/icons/Pen4_16x.svg",
+					"dark": "./res/icons/Pen4_16x.svg"
+				}
+			},
+			{
+				"command": "Config.delete.property",
+				"enablement": "view == STM32-launch-config-manager",
+				"title": "delete configuration"
+			},
+			{
+				"command": "Config.add.property",
+				"enablement": "view == STM32-launch-config-manager",
+				"title": "add a new configuration",
+				"icon": {
+					"light": "./res/icons/PropertyAdded_16x.svg",
+					"dark": "./res/icons/PropertyAdded_16x.svg"
+				}
+			}
+		],
+		"menus": {
+			"view/item/context": [
+				{
+					"command": "Config.change.property",
+					"when": "view == STM32-launch-config-manager"
+				},
+				{
+					"command": "Config.delete.property",
+					"when": "viewItem == Config"
+				},
+				{
+					"command": "Config.change.property",
+					"group": "inline",
+					"when": "view == STM32-launch-config-manager"
+				}
+			],
+			"view/title": [
+				{
+					"command": "Config.add.property",
+					"group": "navigation",
+					"when": "view == STM32-launch-config-manager"
+				}
+			]
+		},
+		"views": {
+			"debug": [
+				{
+					"id": "STM32-launch-config-manager",
+					"name": "STM32 debug configuration manager"
+				}
+			]
+		},
+		"debuggers": [
+			{
+				"type": "STM32",
+				"label": "STM32 Debugger",
+				"program": "./out/extension.js",
+				"runtime": "node",
+				"configurationAttributes": {
+					"launch": {
+						"required": [
+							"program"
+						],
+						"properties": {
+							"name": {
+								"type": "string",
+								"description": "configuration name, to distinguish between other configurations",
+								"default": "Launch Default"
+							},
+							"program": {
+								"type": "string",
+								"description": "elf file Path (must have debug symbol)",
+								"default": "undefined"
+							},
+							"svdPath": {
+								"type": "string",
+								"description": "svd file Path, can be undefined",
+								"default": "undefined"
+							}
+						}
+					}
+				},
+				"initialConfigurations": [
+					{
+						"type": "STM32",
+						"request": "launch",
+						"name": "Launch Default",
+						"program": "undefined",
+						"svdPath": "undefined"
+					}
+				],
+				"configurationSnippets": [
+					{
+						"label": "STM32 Debug: Launch",
+						"description": "A new configuration for launching a STM32 debug program",
+						"body": {
+							"type": "STM32",
+							"request": "launch",
+							"name": "${2:Launch Program}",
+							"program": "undefined",
+							"svdPath": "undefined"
+						}
+					}
+				]
+			}
+		]
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -p ./",
+		"watch": "tsc -watch -p ./",
+		"postinstall": "node ./node_modules/vscode/bin/install",
+		"test": "npm run compile && node ./node_modules/vscode/bin/test"
+	},
+	"devDependencies": {
+		"typescript": "^3.3.1",
+		"vscode": "^1.1.28",
+		"tslint": "^5.12.1",
+		"@types/node": "^10.12.21",
+		"@types/mocha": "^2.2.42"
+	},
+	"dependencies": {
+		"@types/x2js": "^3.1.0",
+		"vscode-debugadapter": "^1.36.0",
+		"vscode-debugprotocol": "^1.36.0",
+		"x2js": "^3.3.1"
+	}
+}
