@@ -6,6 +6,11 @@
 		"name": "CL",
 		"email": "2584456014@qq.com"
 	},
+	"keywords": [
+		"stm32",
+		"debugger",
+		"arm"
+	],
 	"publisher": "CL",
 	"version": "0.0.1",
 	"engines": {
@@ -25,6 +30,7 @@
 	},
 	"main": "./out/extension.js",
 	"preview": true,
+	"homepage": "https://github.com/github0null/stm32-debugger/blob/master/README.md",
 	"contributes": {
 		"commands": [
 			{
@@ -83,6 +89,14 @@
 				}
 			]
 		},
+		"breakpoints": [
+			{
+				"language": "c"
+			},
+			{
+				"language": "cpp"
+			}
+		],
 		"debuggers": [
 			{
 				"type": "STM32",

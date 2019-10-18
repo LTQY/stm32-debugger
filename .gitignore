@@ -7,3 +7,4 @@ src
 vsc-extension-quickstart.md
 stm32-debugger-0.0.1.vsix
 .vscodeignore
+.EIDE
