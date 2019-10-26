@@ -8,6 +8,12 @@ STM32-Debugger is a debugger for cortex-M chips.
 
 ***
 
+## Download
+
+The extension package is too big (about 77 MB), so you can download vsix package from **github -> release**
+
+***
+
 ## Features
 
 * Support `JLink` debugger, support more than `7000+` chips for STM32 chips
