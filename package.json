@@ -102,7 +102,6 @@
 				"type": "STM32",
 				"label": "STM32 Debugger",
 				"program": "./out/extension.js",
-				"runtime": "node",
 				"configurationAttributes": {
 					"launch": {
 						"required": [
