@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import {
     Logger, logger, LoggingDebugSession, StoppedEvent, BreakpointEvent,
     InitializedEvent, TerminatedEvent,
-    Thread, StackFrame, Scope, Source, Handles, Variable, ContinuedEvent
+    Thread, StackFrame, Scope, Source, Handles, Variable, ContinuedEvent, OutputEvent
 } from 'vscode-debugadapter';
 import { DebugProtocol } from 'vscode-debugprotocol';
 import { Runtime, VariablesHandles, LaunchRequestArguments, RuntimeStatus } from './Runtime';
@@ -37,13 +37,17 @@ export class STM32DebugAdapter extends LoggingDebugSession {
 
     private _runtime: Runtime;
 
+    private status: RuntimeStatus;
+
     private _variableHandles = new VariablesHandles(10);
 
     private _configurationDone = new Subject();
 
     constructor() {
 
-        super('_null');
+        super();
+
+        this.status = RuntimeStatus.Stopped;
 
         // this debugger uses zero-based lines and columns
         this.setDebuggerLinesStartAt1(false);
@@ -75,11 +79,17 @@ export class STM32DebugAdapter extends LoggingDebugSession {
         this._runtime.on('breakpointValidated', (bp) => {
             this.sendEvent(new BreakpointEvent('changed', bp));
         });
-        this._runtime.on('close', () => {
-            this.sendEvent(new TerminatedEvent());
+        this._runtime.once('close', () => {
+            if (RuntimeStatus.Running === this.status) {
+                this.sendEvent(new TerminatedEvent());
+            }
         });
         this._runtime.on('continue', (threadID) => {
             this.sendEvent(new ContinuedEvent(threadID, false));
+        });
+        this._runtime.on('output', (data: { line: string, type: string | undefined }) => {
+            const e = new OutputEvent(data.line + '\n', data.type);
+            this.sendEvent(e);
         });
     }
 
@@ -98,14 +108,25 @@ export class STM32DebugAdapter extends LoggingDebugSession {
 
         response.body.supportsRestartRequest = true;
 
-        await this._runtime.Connect();
+        //this.status = RuntimeStatus.Running;
 
-        this.sendResponse(response);
+        let done: boolean | undefined = await this._runtime.Connect();
 
-        this.sendEvent(new InitializedEvent());
+        if (done) {
+
+            this.sendResponse(response);
+
+            this.sendEvent(new InitializedEvent());
+
+        } else {
+
+            this.sendEvent(new TerminatedEvent());
+
+        }
     }
 
     protected terminateRequest(response: DebugProtocol.TerminateResponse, args: DebugProtocol.TerminateArguments): void {
+        this.status = RuntimeStatus.Stopped;
         this.sendResponse(response);
     }
 
@@ -131,6 +152,9 @@ export class STM32DebugAdapter extends LoggingDebugSession {
     protected async launchRequest(response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments) {
 
         // wait until configuration has finished (and configurationDoneRequest has been called)
+
+        this.status = RuntimeStatus.Running;
+
         await this._configurationDone.wait();
 
         await this._runtime.Init(args);
@@ -139,6 +163,7 @@ export class STM32DebugAdapter extends LoggingDebugSession {
         await this._runtime.start();
 
         this.sendResponse(response);
+
         this._runtime.continue();
     }
 

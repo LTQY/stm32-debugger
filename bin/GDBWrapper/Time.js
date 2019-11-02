@@ -173,10 +173,13 @@ class Time {
     }
     GetTimeStamp() {
         this.date.setTime(Date.now());
-        let dateStr = this.date.toLocaleDateString();
+        let dateStr = this.GetDateString();
         let tList = this.date.toTimeString().split(' ');
         dateStr += this.Separater + tList[0] + this.Separater + tList[1];
         return dateStr;
+    }
+    GetDateString() {
+        return this.date.getFullYear().toString() + '/' + (this.date.getMonth() + 1).toString() + '/' + this.date.getDate().toString();
     }
     GetTimeInfo() {
         this.date.setTime(Date.now());

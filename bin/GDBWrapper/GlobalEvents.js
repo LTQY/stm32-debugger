@@ -29,20 +29,19 @@ exports.GlobalEvent = GlobalEvent;
 GlobalEvent.prepend('msg', (msg) => {
     switch (msg.type) {
         case 'Error':
-            console.error(JSON.stringify(msg));
+            GlobalEvent.emit('log', { line: JSON.stringify(msg), type: 'Error' });
             break;
         case 'Warning':
-            console.warn(JSON.stringify(msg));
+            GlobalEvent.emit('log', { line: JSON.stringify(msg), type: 'Warning' });
             break;
         default:
-            console.info(JSON.stringify(msg));
+            GlobalEvent.emit('log', { line: JSON.stringify(msg), type: 'Info' });
             break;
     }
     msg.timeStamp = Time_1.Time.GetInstance().GetTimeStamp();
 });
 GlobalEvent.on('error', (err) => {
     if (err) {
-        console.error(err);
         GlobalEvent.emit('msg', Message_1.ExceptionToMessage(err));
     }
     else {

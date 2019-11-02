@@ -18,7 +18,7 @@ function HandlePort_1122(socket) {
         msgList.forEach((str) => {
             if (str.trim() !== '') {
                 let tData = JSON.parse(str);
-                console.log('[request] : ' + str);
+                GlobalEvents_1.GlobalEvent.emit('log', { line: '[request] : ' + str });
                 switch (tData.tag) {
                     case 'Debug':
                         HandleDebug(JSON.parse(tData.data));
@@ -47,7 +47,7 @@ function HandlePort_1122(socket) {
     emitter.on('Debug_Response', (data) => {
         const response = JSON.stringify(data);
         socket.write(response + GDBProtocol_1.tcpDataSeparator);
-        console.log('[PostResponse] : ' + response);
+        GlobalEvents_1.GlobalEvent.emit('log', { line: '[PostResponse] : ' + response });
     });
     socket.on('end', () => {
         if (!activeEnd) {
@@ -154,7 +154,7 @@ function HandleDebug(content) {
 }
 function RunCmd(command, params, key) {
     if (command !== GDBProtocol_1.BpHitCommand) {
-        console.log('[RunCommand] : ' + command + params);
+        GlobalEvents_1.GlobalEvent.emit('log', { line: '[RunCommand] : ' + command + params });
         debugProc.stdin.write(command + params, 'ascii');
     }
 }
@@ -176,7 +176,7 @@ function Debug_start() {
             reject(err);
         });
         debugIO.on('line', (line) => {
-            console.log('[Line] : ' + line);
+            GlobalEvents_1.GlobalEvent.emit('log', { line: '[Line] : ' + line });
             if (gdbWaitMatcher.test(line)) {
                 if (isRunning) {
                     DebugResponse();
@@ -207,7 +207,7 @@ function DebugResponse() {
     exeQueue.NotifyRunNext();
 }
 function SendResponse(response) {
-    console.log('[SendResponse] : ' + response.command);
+    GlobalEvents_1.GlobalEvent.emit('log', { line: '[SendResponse] : ' + response.command });
     emitter.emit('Debug_Response', {
         tag: 'Debug',
         data: JSON.stringify(response)

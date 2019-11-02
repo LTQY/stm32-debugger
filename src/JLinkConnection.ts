@@ -37,10 +37,12 @@ export class JLinkConnection implements Connection {
     }
 
     emit(event: 'close'): boolean;
-    emit(event: any, args?: any): boolean {
-        return this._event.emit(event, args);
+    emit(event: any, argc?: any): boolean {
+        return this._event.emit(event, argc);
     }
 
+    on(event: "stdout", listener: (str: string) => void): this;
+    on(event: "stderr", listener: (str: string) => void): this;
     on(event: "connect", listener: () => void): this;
     on(event: "close", listener: () => void): this;
     on(event: "error", listener: (err: Error) => void): this;
@@ -74,13 +76,13 @@ export class JLinkConnection implements Connection {
             let jLinkConf = confList[index];
             let checkRes = LaunchConfigManager.GetInstance().CheckConfig(jLinkConf);
             if (checkRes.state === 'pass') {
-                return new Promise((resolve, reject) => {
+                return new Promise((resolve) => {
                     this._connect(jLinkConf).then(() => {
                         this._event.emit('connect');
                         resolve(true);
                     }, () => {
                         this._event.emit('close');
-                        reject();
+                        resolve(false);
                     });
                 });
             } else {
@@ -89,7 +91,7 @@ export class JLinkConnection implements Connection {
             }
         }
 
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
             GlobalEvent.emit('msg', {
                 className: JLinkConnection.name,
                 methodName: this.Connect.name,
@@ -97,12 +99,13 @@ export class JLinkConnection implements Connection {
                 contentType: 'object',
                 content: JSON.stringify(res)
             });
-            reject();
+            resolve(false);
         });
     }
 
     async Close(): Promise<void> {
         await this.process.Kill();
+        this.status = ConnectStatus.Close;
     }
 
     private _connect(config: JLinkConfig): Promise<void> {
@@ -134,6 +137,9 @@ export class JLinkConnection implements Connection {
             this.status = ConnectStatus.Pending;
 
             this.process.on('close', (exitInfo) => {
+
+                this.status = ConnectStatus.Close;
+
                 if (exitInfo.signal === 'SIGKILL') {
                     this.emit('close');
                 } else {
@@ -153,7 +159,7 @@ export class JLinkConnection implements Connection {
 
             this.process.on('line', (line) => {
 
-                console.log('[JLinkGDBServer] : ' + line);
+                this._event.emit('stdout', '[JLinkGDBServer] : ' + line);
 
                 strList.push(line);
 

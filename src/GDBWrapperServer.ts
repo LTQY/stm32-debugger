@@ -5,9 +5,9 @@ import { ResManager } from "./ResManager";
 import * as path from 'path';
 import { File } from "./File";
 
-export class GDBWrapperConnection implements Connection {
+export class GDBWrapperServer implements Connection {
 
-    TAG: string = GDBWrapperConnection.name;
+    TAG: string = GDBWrapperServer.name;
 
     static moduleName = 'server.js';
 
@@ -21,6 +21,9 @@ export class GDBWrapperConnection implements Connection {
         this._event = new events.EventEmitter();
         this.process = new ExeModule();
     }
+
+    on(event: "stdout", listener: (str: string) => void): this;
+    on(event: "stderr", listener: (str: string) => void): this;
 
     on(event: "connect", listener: () => void): this;
     on(event: "close", listener: () => void): this;
@@ -42,7 +45,7 @@ export class GDBWrapperConnection implements Connection {
             });
         }
 
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
 
             this.status = ConnectStatus.Pending;
 
@@ -53,7 +56,7 @@ export class GDBWrapperConnection implements Connection {
 
             this.process.on('close', (exitInfo) => {
                 if (this.status !== ConnectStatus.Active) {
-                    reject();
+                    resolve(false);
                 }
                 this.status = ConnectStatus.Close;
                 this._event.emit('close');
@@ -63,21 +66,16 @@ export class GDBWrapperConnection implements Connection {
                 this._event.emit('error');
             });
 
-            this.process.on('line', (line) => {
-                //do nothing
-            });
+            let exeFile: File = new File(ResManager.GetInstance().GetGDBWrapperDir().path + path.sep + GDBWrapperServer.moduleName);
 
-            this.process.on('errLine', (errLine) => {
-                //do nothing
-            });
+            const logPath: string = ResManager.GetInstance().GetLogDir().path + File.sep + GDBWrapperServer.name + '.log';
 
-            let exeFile: File = new File(ResManager.GetInstance().GetGDBWrapperDir().path + path.sep + GDBWrapperConnection.moduleName);
-
-            this.process.Run(exeFile.path, undefined, { cwd: exeFile.dir, detached: true });
+            this.process.Run(exeFile.path, [logPath]);
         });
     }
 
     async Close(): Promise<void> {
         await this.process.Kill();
+        this.status = ConnectStatus.Close;
     }
 }

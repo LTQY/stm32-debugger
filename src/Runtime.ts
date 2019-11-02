@@ -9,7 +9,7 @@ import { File } from './File';
 import { GlobalEvent } from './GlobalEvents';
 import { GDBConnection, OnStoppedData } from './GDBConnection';
 import * as Path from 'path';
-import { GDBWrapperConnection } from './GDBWrapperConnection';
+import { GDBWrapperServer } from './GDBWrapperServer';
 import { Connection, ConnectStatus } from './Connection';
 import { invalid_elf_file_path, invalid_svd_file_path, program_exit, receive_signal } from './StringTable';
 
@@ -92,7 +92,7 @@ export class Runtime extends events.EventEmitter {
 
     private connectionList: Connection[] = [
         new JLinkConnection(),
-        new GDBWrapperConnection(),
+        new GDBWrapperServer(),
         new GDBConnection(),
     ];
 
@@ -108,7 +108,7 @@ export class Runtime extends events.EventEmitter {
 
     private preSetBpList: any[] = [];
 
-    on(event: 'close', listener: () => void): this;
+    on(event: 'output', listener: (data: { line: string, type: string | undefined }) => void): this;
     on(event: 'request_close', listener: () => void): this;
     on(event: 'stopOnEntry', listener: (threadID: number) => void): this;
     on(event: 'stopOnStep', listener: (threadID: number) => void): this;
@@ -127,6 +127,7 @@ export class Runtime extends events.EventEmitter {
         return super.once(event, listener);
     }
 
+    emit(event: 'output', data: { line: string, type: string | undefined }): boolean;
     emit(event: 'request_close'): boolean;
     emit(event: 'close'): boolean;
     emit(event: 'stopOnEntry', threadID: number): boolean;
@@ -200,14 +201,21 @@ export class Runtime extends events.EventEmitter {
             }
         }
 
-        this.status = RuntimeStatus.Stopped;
-
         this.emit('close');
+
+        this.status = RuntimeStatus.Stopped;
     }
 
     private RegisterCloseListener() {
         this.on('request_close', () => {
             this.OnClose();
+        });
+        this.once('close', () => {
+            GlobalEvent.emit('msg', <Message>{
+                type: 'Info',
+                contentType: 'string',
+                content: program_exit
+            });
         });
     }
 
@@ -215,7 +223,7 @@ export class Runtime extends events.EventEmitter {
         return this.status;
     }
 
-    async Connect(): Promise<void> {
+    async Connect(): Promise<boolean> {
 
         let configName = await LaunchConfigManager.GetInstance().SelectConfig();
 
@@ -223,7 +231,7 @@ export class Runtime extends events.EventEmitter {
 
             console.log('Select canceled !');
 
-            this.Disconnect();
+            return new Promise((resolve) => { resolve(false); });
 
         } else {
 
@@ -238,7 +246,20 @@ export class Runtime extends events.EventEmitter {
                 });
 
                 con.on('error', (err) => {
-                    GlobalEvent.emit('error', err);
+                    GlobalEvent.emit('msg', {
+                        type: 'Warning',
+                        contentType: 'exception',
+                        content: JSON.stringify(err),
+                        className: con.TAG
+                    });
+                });
+
+                con.on('stdout', (line) => {
+                    this.emit('output', { line: line, type: 'log' });
+                });
+
+                con.on('stderr', (line) => {
+                    this.emit('output', { line: line, type: 'warn' });
                 });
 
                 switch (i) {
@@ -265,12 +286,11 @@ export class Runtime extends events.EventEmitter {
                 connectOk = await con.Connect(configName);
 
                 if (!connectOk) {
-                    this.Disconnect();
-                    return new Promise((resolve) => { resolve(); });
+                    return new Promise((resolve) => { resolve(false); });
                 }
             }
 
-            return new Promise((resolve) => { resolve(); });
+            return new Promise((resolve) => { resolve(true); });
         }
     }
 
@@ -431,7 +451,7 @@ export class Runtime extends events.EventEmitter {
                 gdbConnection.Notify('info stack', <GDBFrame[]>response.result);
                 break;
             case 'print':
-                gdbConnection.Notify('print', (<Expression[]>response.result)[0]);
+                gdbConnection.Notify('print', response.result ? (<Expression[]>response.result)[0] : undefined);
                 break;
             case 'set':
                 gdbConnection.Notify('set', response.status.isDone);
@@ -445,11 +465,26 @@ export class Runtime extends events.EventEmitter {
         }
 
         if (!response.status.isDone && response.status.msg) {
+
             GlobalEvent.emit('msg', <Message>{
                 type: 'Warning',
                 contentType: 'string',
+                title: 'Debugger Warning',
+                className: Runtime.name,
+                methodName: this.HandleDebugResponse.name,
                 content: response.status.msg
             });
+
+            switch (response.command) {
+                case 'init':
+                case 'file':
+                case 'target remote':
+                case 'load':
+                    this.Disconnect();
+                    break;
+                default:
+                    break;
+            }
         }
     }
 
@@ -460,11 +495,6 @@ export class Runtime extends events.EventEmitter {
     async Disconnect(): Promise<void> {
         return new Promise((resolve) => {
             this.once('close', () => {
-                GlobalEvent.emit('msg', <Message>{
-                    type: 'Info',
-                    contentType: 'string',
-                    content: program_exit
-                });
                 resolve();
             });
             this.emit('request_close');

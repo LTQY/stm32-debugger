@@ -1,7 +1,6 @@
 import * as process from 'child_process';
 import * as events from 'events';
 import * as ReadLine from 'readline';
-import { GlobalEvent } from './GlobalEvents';
 
 export type ExecutableOption = process.ExecFileOptions | process.ForkOptions;
 
@@ -87,7 +86,7 @@ export abstract class Process implements Executable {
                 this._event.once('close', (exitInfo: ExitInfo) => {
                     resolve();
                     if (exitInfo.signal !== Process.killSignal) {
-                        GlobalEvent.emit('error', new Error('Process killed with error signal !'));
+                        console.error('Process killed with error signal !');
                     }
                 });
                 this.proc.kill(Process.killSignal);

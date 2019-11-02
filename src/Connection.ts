@@ -14,6 +14,10 @@ export interface Connection {
 
     Close: () => void;
 
+    on(event: "stdout", listener: (str: string) => void): this;
+    
+    on(event: "stderr", listener: (str: string) => void): this;
+
     on(event: 'connect', listener: () => void): this;
 
     on(event: 'close', listener: () => void): this;

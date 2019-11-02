@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const GlobalEvents_1 = require("./GlobalEvents");
 class GDBTextParser {
     constructor() {
         this._matcher = new ExpressionMatcher();
@@ -143,7 +144,7 @@ class GDBTextParser {
                     response.result = this._matcher.ParseToBreakpointInfo(lines);
                     break;
                 default:
-                    console.log('[' + GDBTextParser.name + '] : ignore command \'' + response.command + '\'');
+                    GlobalEvents_1.GlobalEvent.emit('log', { line: '[' + GDBTextParser.name + '] : ignore command \'' + response.command + '\'' });
                     break;
             }
         }

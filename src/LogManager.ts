@@ -9,6 +9,7 @@ import { NetRequest } from './NetRequest';
 import { LogAnalyzer } from './LogAnalyzer';
 import { GetUUID } from './Device';
 import { RemoteRequest, LogData } from './RemoteServerProtocol';
+import * as vscode from 'vscode';
 
 let _logger: LogManager;
 let uuid = GetUUID();
@@ -168,11 +169,18 @@ export class LogManager extends EventEmitter {
 
     Upload() {
         if (!this.IsEmpty()) {
-            this.UploadLog().then(() => {
-                this.ClearAll();
-            }, () => {
-                this.ErrorDump();
-            });
+
+            let eide = vscode.extensions.getExtension('CL.eide');
+
+            if (eide === undefined) {
+                this.UploadLog().then(() => {
+                    this.ClearAll();
+                }, () => {
+                    this.ErrorDump();
+                });
+            } else {
+                this.Dump();
+            }
         }
     }
 

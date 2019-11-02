@@ -36,7 +36,7 @@ export class GDBConnection extends events.EventEmitter implements Connection {
     Send(event: 'info registers'): Promise<Expression[]>;
 
     Send(event: any, argc?: any): Promise<any> {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
 
             if (event === 'step' || event === 'step over' || event === 'continue' || event === 'pause') {
                 this.prevCommand = event;
@@ -53,7 +53,7 @@ export class GDBConnection extends events.EventEmitter implements Connection {
                     data: argc ? (typeof argc === 'string' ? argc : JSON.stringify(argc)) : ''
                 })
             }))) {
-                reject();
+                resolve();
             }
 
         });
@@ -79,7 +79,8 @@ export class GDBConnection extends events.EventEmitter implements Connection {
     Notify(event: any, argc?: any): void {
         super.emit(event, argc);
     }
-
+    on(event: "stdout", listener: (str: string) => void): this;
+    on(event: "stderr", listener: (str: string) => void): this;
     on(event: 'OnStopped', listener: (stoppedData: OnStoppedData) => void): this;
     on(event: 'error', listener: (err: Error) => void): this;
     on(event: 'line', listener: (data: string) => void): this;
@@ -114,7 +115,7 @@ export class GDBConnection extends events.EventEmitter implements Connection {
 
     Connect(): Promise<boolean> {
 
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
 
             this.status = ConnectStatus.Pending;
 
@@ -122,6 +123,7 @@ export class GDBConnection extends events.EventEmitter implements Connection {
                 host: 'localhost',
                 port: 1122
             });
+            
             this.connection.setEncoding('utf8');
 
             this.connection.on('connect', () => {
@@ -135,8 +137,8 @@ export class GDBConnection extends events.EventEmitter implements Connection {
             });
 
             this.connection.on('close', () => {
-                if(this.status !== ConnectStatus.Active) {
-                    reject();   
+                if (this.status !== ConnectStatus.Active) {
+                    resolve(false);
                 }
                 this.status = ConnectStatus.Close;
                 this.emit('close');
@@ -167,10 +169,10 @@ export class GDBConnection extends events.EventEmitter implements Connection {
         return new Promise((resove) => {
             if (this.connection && !this.connection.destroyed) {
                 this.activeEnd = true;
-                this.connection.once('end', () => {
+                this.connection.end();
+                this.on('close', () => {
                     resove();
                 });
-                this.connection.end();
             } else {
                 resove();
             }
