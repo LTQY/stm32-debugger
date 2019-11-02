@@ -63,7 +63,7 @@ export class GDBWrapperServer implements Connection {
             });
 
             this.process.on('error', (err) => {
-                this._event.emit('error');
+                this._event.emit('error', err);
             });
 
             let exeFile: File = new File(ResManager.GetInstance().GetGDBWrapperDir().path + path.sep + GDBWrapperServer.moduleName);
