@@ -319,14 +319,13 @@ export class Runtime extends events.EventEmitter {
         await (<GDBConnection>this.connectionList[ConnectionIndex.GDB]).Send('init', this.GetLaunchConfig().program.path);
 
         for (let i = 0; i < this.preSetBpList.length; i++) {
-            this.setBreakpoints(this.preSetBpList[i].path, this.preSetBpList[i].lines).then((bpList) => {
-                bpList.forEach((bp) => {
-                    this.emit('breakpointValidated', {
-                        id: bp.id,
-                        source: this.CreateSource(bp.source),
-                        line: bp.lineNum,
-                        verified: bp.verified
-                    });
+            const bpList = await this.setBreakpoints(this.preSetBpList[i].path, this.preSetBpList[i].lines);
+            bpList.forEach((bp) => {
+                this.emit('breakpointValidated', {
+                    id: bp.id,
+                    source: this.CreateSource(bp.source),
+                    line: bp.lineNum,
+                    verified: bp.verified
                 });
             });
         }

@@ -7,7 +7,9 @@ const File_1 = require("./File");
 const fs = require("fs");
 const Time_1 = require("./Time");
 const file = new File_1.File(process.argv[1]);
-process.chdir(file.dir);
+if (process.cwd() !== file.fPath) {
+    process.chdir(file.dir);
+}
 if (process.argv.length > 2) {
     const fStream = fs.createWriteStream(process.argv[2], { autoClose: true, encoding: 'utf8' });
     fStream.write('[Log Time] : ' + Time_1.Time.GetInstance().GetTimeStamp() + '\r\n');

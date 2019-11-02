@@ -13,7 +13,7 @@ class ExecutableQueue extends events_1.EventEmitter {
         if (!this._queue.IsEmpty()) {
             const v = this._queue.First();
             if (this.OnRunNewOne) {
-                GlobalEvents_1.GlobalEvent.emit('log', { line: '[ExecutableQueue] : Run !' });
+                GlobalEvents_1.GlobalEvent.emit('log', { line: '[ExecutableQueue] : Run \'' + v.command + '\'' });
                 this.OnRunNewOne(v.command, v.params, v.key);
             }
             else {
@@ -30,7 +30,7 @@ class ExecutableQueue extends events_1.EventEmitter {
             params: (params ? ' ' + params : '') + '\n',
             key: key
         });
-        GlobalEvents_1.GlobalEvent.emit('log', { line: '[ExecutableQueue] : Add !' });
+        GlobalEvents_1.GlobalEvent.emit('log', { line: '[ExecutableQueue] : Add \'' + command + '\'' });
         if (this.runFirst) {
             this.runFirst = false;
             this.RunNext();
