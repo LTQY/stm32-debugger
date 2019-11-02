@@ -12,7 +12,7 @@
 		"arm"
 	],
 	"publisher": "CL",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"engines": {
 		"vscode": "^1.36.0"
 	},
@@ -131,8 +131,8 @@
 						"type": "STM32",
 						"request": "launch",
 						"name": "Launch Default",
-						"program": "undefined",
-						"svdPath": "undefined"
+						"program": "axf/elf file path",
+						"svdPath": "svd file path (can be null)"
 					}
 				],
 				"configurationSnippets": [
