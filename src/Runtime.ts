@@ -458,6 +458,9 @@ export class Runtime extends events.EventEmitter {
             case 'info registers':
                 gdbConnection.Notify('info registers', <Expression[]>response.result);
                 break;
+            case 'x':
+                gdbConnection.Notify('x', response.status.isDone ? (<Expression[]>response.result)[0] : undefined);
+                break;
             default:
                 console.log('Ignore command \'' + response.command + '\'');
                 break;
@@ -645,7 +648,7 @@ export class Runtime extends events.EventEmitter {
                 v.type = 'array';
                 v.value = 'array [' + (<any[]>JSON.parse(expr.val)).length.toString() + ']';
 
-                child = new Variable('real', expr.val);
+                child = new Variable('_obj', expr.val);
                 child.type = 'array';
 
                 v.variablesReference = vHandler.create(child);
@@ -662,7 +665,7 @@ export class Runtime extends events.EventEmitter {
                 v.type = 'object';
                 v.value = 'Object ' + expr.val;
 
-                child = new Variable('real', expr.val);
+                child = new Variable('_obj', expr.val);
                 child.type = 'object';
 
                 v.variablesReference = vHandler.create(child);
@@ -700,8 +703,8 @@ export class Runtime extends events.EventEmitter {
     async getLocal(vHandler: VariablesHandles): Promise<DebugProtocol.Variable[]> {
         return new Promise((resolve) => {
             (<GDBConnection>this.connectionList[ConnectionIndex.GDB]).Send('info locals').then((valList) => {
+
                 let variablesList: DebugProtocol.Variable[] = [];
-                let nVal: DebugProtocol.Variable;
                 valList.forEach((v) => {
                     variablesList.push(this.ExpressionToVariables(vHandler, v));
                 });
@@ -752,8 +755,21 @@ export class Runtime extends events.EventEmitter {
         });
     }
 
+    async readMemory(name: string, address: number): Promise<DebugProtocol.Variable> {
+
+        return new Promise((resolve) => {
+
+            (<GDBConnection>this.connectionList[ConnectionIndex.GDB]).Send('x', '0x' + address.toString(16)).then((expr) => {
+                if (expr) {
+                    resolve(new Variable(name, expr.val, 0));
+                } else {
+                    resolve(new Variable(name, 'null', 0));
+                }
+            });
+        });
+    }
+
     private CreateSource(path: string): DebugProtocol.Source {
         return new Source(Path.basename(path), path);
     }
-
 }

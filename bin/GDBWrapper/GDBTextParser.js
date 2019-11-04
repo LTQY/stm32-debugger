@@ -79,6 +79,10 @@ class GDBTextParser {
                     resList.push('~' + subList.join(''));
                     subList = [];
                 }
+                else if (/<optimized out>/.test(list[1])) {
+                    resList.push('~' + list[1]);
+                    subList = [];
+                }
                 else {
                     subList.push(list[1]);
                 }
@@ -143,6 +147,9 @@ class GDBTextParser {
                 case 'break':
                     response.result = this._matcher.ParseToBreakpointInfo(lines);
                     break;
+                case 'x':
+                    response.result = this._matcher.ParseToMemoryValue(lines);
+                    break;
                 default:
                     GlobalEvents_1.GlobalEvent.emit('log', { line: '[' + GDBTextParser.name + '] : ignore command \'' + response.command + '\'' });
                     break;
@@ -158,32 +165,35 @@ class ExpressionMatcher {
             //this.matchers.set('remote_Error', new RegExp(/^.*Remote communication error.+\s*/));
             //this.matchers.set('connect_Error', new RegExp(/^\.\s*/));
             //this.matchers.set('file_Not_Found', new RegExp(/^.*\s*No such file or directory.*\s*$/));
-            'file_No_Symbol': new RegExp(/^.*\(No debugging symbols found.*$/),
-            'is_expression': new RegExp(/^.+\s*=\s*.+$/),
+            'file_No_Symbol': /^.*\(No debugging symbols found.*$/,
+            'is_expression': /^.+\s*=\s*.+$/,
             //this.matchers.set('not_found_variables', new RegExp(/^No symbol .* in current context.*$/));
             //Breakpoint 1 at 0x8002454: file d:\Code Project\ARM\IOToggle\Project\USER\main.c, line 62.
             //
-            'breakpoint_Set': new RegExp(/^Breakpoint ([0-9]+) at (0x[0-9a-f]+): file (.+), line ([0-9]+).$/),
+            'breakpoint_Set': /^Breakpoint ([0-9]+) at (0x[0-9a-f]+): file (.+), line ([0-9]+).$/,
             //Breakpoint 2, main () at d:\Code Project\ARM\IOToggle\Project\USER\main.c:60
             //this.matchers.set('breakpoint_Hit', new RegExp(/^Breakpoint ([0-9]+), \b\w+\b \((.*)\)\s+at (.+):([0-9]+)$/, 'g'));
+            //0xbffff2ec:    0x00282ff4    0x080484e0
+            'Memory_Value': /\s*[0-9a-fA-FxX]+\s*:\s*([0-9a-fA-FxX]+)\s*/,
+            'Exp_Optimized': /^([^=]+)\s*=\s*(<optimized out>).*$/,
             //$2 = 1000
-            'Exp_Integer': new RegExp(/^(.+)\s*=\s*(-?\s*[0-9]+)\s*$/),
-            'Exp_Hex': new RegExp(/^(.+)\s*=\s*((?:0x|0X)[0-9a-fA-F]+)\s*$/),
-            'Exp_Float': new RegExp(/^(.+)\s*=\s*(-?\s*[0-9]+\.[0-9]+)\s*$/),
+            'Exp_Integer': /^([^=]+)\s*=\s*(-?\s*[0-9]+)\s*$/,
+            'Exp_Hex': /^([^=]+)\s*=\s*((?:0x|0X)[0-9a-fA-F]+)\s*$/,
+            'Exp_Float': /^([^=]+)\s*=\s*(-?\s*[0-9]+\.[0-9]+)\s*$/,
             //$1 = {a = {0 <repeats 12 times>}, s = 0x0, TIM_InitData = {TIM_Prescaler = 0, TIM_CounterMode = 0, TIM_Period = 0, 
             //TIM_ClockDivision = 0, TIM_RepetitionCounter = 0 '\000'}}
-            'Exp_Object': new RegExp(/^\s*(.+)\s*=\s*(\{\s*\w+\s*=.+\})\s*$/),
-            'Exp_Array': new RegExp(/^\s*(.+)\s*=\s*(\{[^=]+\}|".+")\s*$/),
+            'Exp_Object': /^\s*([^=]+)\s*=\s*(\{\s*\w+\s*=.+\})\s*$/,
+            'Exp_Array': /^\s*([^=]+)\s*=\s*(\{[^=]+\}|".+")\s*$/,
             //'Exp_NumberArray': new RegExp(/^\s*(.+)\s*=\s*\{([0-9\.,\s]+)\}\s*$/),
             //$3 = "\000\000\000\000\001\002\003\004\001\002\003\004\006\a\b\t"
             //'Exp_charArray': new RegExp(/^(.+)\s*=\s*"(.*)"\s*$/),
             //other
-            'Variables_Define': new RegExp(/^\s*(?:\s*\b[a-zA-Z_]\w*\b\s*)+\b([a-zA-Z_]\w*)\s*(\[[0-9]+\])?.*;\s*$/),
+            'Variables_Define': /^\s*(?:\s*\b[a-zA-Z_]\w*\b\s*)+\b([a-zA-Z_]\w*)\s*(\[[0-9]+\])?.*;\s*$/,
             //#0  InitADC () at d:\Code Project\ARM\IOToggle\Project\USER\main.c:116
             //#1  0x08002562 in SysTick_Handler () at d:\Code Project\ARM\IOToggle\Project\STARTUP\/startup_MM32F103.s:156
             //5-6
-            'Call_Stack': new RegExp(/^#([0-9]+)\s+(?:(0x[0-9]+)\s*in)?\s*(\w+)\s*.*at (.*):([0-9]+)$/),
-            'Value_Registers': new RegExp(/^(\w+)\b\s+(0x[0-9]+).*$/)
+            'Call_Stack': /^#([0-9]+)\s+(?:(0x[0-9]+)\s*in)?\s*(\w+)\s*.*at (.*):([0-9]+)$/,
+            'Value_Registers': /^(\w+)\b\s+(0x[0-9]+).*$/
         };
     }
     UnFoldRepeat(str) {
@@ -249,6 +259,9 @@ class ExpressionMatcher {
     }
     IsArray(str) {
         return this._matcher['Exp_Array'].test(str);
+    }
+    IsOptimized(expr) {
+        return this._matcher['Exp_Optimized'].test(expr);
     }
     IsFileNoSymbol(strList) {
         let r = this._matcher['file_No_Symbol'];
@@ -326,10 +339,34 @@ class ExpressionMatcher {
         });
         return res;
     }
+    ParseToMemoryValue(lines) {
+        const res = [];
+        const reg = this._matcher['Memory_Value'];
+        let list;
+        lines.forEach(line => {
+            list = reg.exec(line);
+            if (list && list.length > 1) {
+                res.push({
+                    name: 'result',
+                    dataType: 'integer',
+                    val: list[1].trim()
+                });
+            }
+        });
+        return res.length > 0 ? res : undefined;
+    }
     _parseValue(str) {
         let expr;
         let list;
-        if (this.IsNumber(str)) {
+        if (this.IsOptimized(str)) {
+            list = this._matcher['Exp_Optimized'].exec(str);
+            expr = {
+                dataType: 'integer',
+                name: list[1].trim() + ' <optimized out>',
+                val: 'null'
+            };
+        }
+        else if (this.IsNumber(str)) {
             if (this.IsInteger(str)) {
                 list = this._matcher['Exp_Integer'].exec(str);
                 expr = {
@@ -411,7 +448,7 @@ class ExpressionMatcher {
                 }
             }
         });
-        return res;
+        return res.length > 0 ? res : undefined;
     }
 }
 //# sourceMappingURL=GDBTextParser.js.map

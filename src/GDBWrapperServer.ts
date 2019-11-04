@@ -39,6 +39,8 @@ export class GDBWrapperServer implements Connection {
 
     Connect(): Promise<boolean> {
 
+        // return new Promise((resolve) => { resolve(true); }); // Test
+
         if (this.status === ConnectStatus.Active) {
             return new Promise((resolve) => {
                 resolve(true);

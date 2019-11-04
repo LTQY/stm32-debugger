@@ -34,6 +34,7 @@ export class GDBConnection extends events.EventEmitter implements Connection {
     Send(event: 'print', variablesName: string): Promise<NotifyData<Expression>>;
     Send(event: 'set', expression: string): Promise<boolean>;
     Send(event: 'info registers'): Promise<Expression[]>;
+    Send(event: 'x', addr: string): Promise<NotifyData<Expression>>;
 
     Send(event: any, argc?: any): Promise<any> {
         return new Promise((resolve) => {
@@ -75,6 +76,7 @@ export class GDBConnection extends events.EventEmitter implements Connection {
     Notify(event: 'print', variables: NotifyData<Expression>): void;
     Notify(event: 'set', ok: boolean): void;
     Notify(event: 'info registers', varList: Expression[]): void;
+    Notify(event: 'x', val: NotifyData<Expression>): void;
 
     Notify(event: any, argc?: any): void {
         super.emit(event, argc);

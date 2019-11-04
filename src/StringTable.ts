@@ -10,6 +10,11 @@ let langIndex: number = /zh-cn/.test(vscode.env.language)
 
 //-----------------string table----------
 
+export const parse_svdFile_failed = [
+    '无法解析的SVD文件: ',
+    'Parse SVD file failed: '
+][langIndex];
+
 export const receive_signal = [
     '程序接收到终止信号: ',
     'Program received exit signal: '

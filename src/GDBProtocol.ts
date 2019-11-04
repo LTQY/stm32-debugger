@@ -22,7 +22,7 @@ export const BpHitCommand: GDBCommand = '###';
 export type GDBCommand = 'file' | 'target remote' | 'load' | 'undisplay' |
     'break' | 'delete breakpoints' | 'continue' | 'stop' |
     'step' | 'step over' | 'info locals' | 'info variables' |
-    'info stack' | 'print' | 'set' | 'info registers' | '###' | 'init' | 'pause';
+    'info stack' | 'print' | 'set' | 'info registers' | '###' | 'init' | 'pause' | 'x';
 
 export interface BaseBreakPoint {
     source: string;

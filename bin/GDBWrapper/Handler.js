@@ -138,10 +138,13 @@ function HandleDebug(content) {
             exeQueue.Execute('print', content.data);
             break;
         case 'set':
-            exeQueue.Execute('set var ' + content.data);
+            exeQueue.Execute('set var', content.data);
             break;
         case 'info registers':
             exeQueue.Execute('info registers');
+            break;
+        case 'x': // x /1xw
+            exeQueue.Execute('x', '/1xw ' + content.data);
             break;
         default:
             GlobalEvents_1.GlobalEvent.emit('msg', {

@@ -9,6 +9,9 @@ import { Runtime, VariablesHandles, LaunchRequestArguments, RuntimeStatus } from
 import { GlobalEvent } from './GlobalEvents';
 import { EventEmitter } from 'events';
 import * as path from 'path';
+import { SVDParer, Peripheral } from './SVDParser';
+import { File } from './File';
+import { parse_svdFile_failed } from './StringTable';
 
 class Subject {
 
@@ -41,11 +44,17 @@ export class STM32DebugAdapter extends LoggingDebugSession {
 
     private _variableHandles = new VariablesHandles(10);
 
+    private _variablesList: Variable[];
+
     private _configurationDone = new Subject();
+
+    private _svdParser: SVDParer;
 
     constructor() {
 
         super();
+
+        this._variablesList = [];
 
         this.status = RuntimeStatus.Stopped;
 
@@ -54,6 +63,8 @@ export class STM32DebugAdapter extends LoggingDebugSession {
         this.setDebuggerColumnsStartAt1(false);
 
         this._runtime = new Runtime();
+
+        this._svdParser = new SVDParer();
 
         //StoppedEvent: 'step', 'breakpoint', 'exception', 'pause', 'entry', 'goto', 'function breakpoint', 'data breakpoint', etc.
 
@@ -106,6 +117,12 @@ export class STM32DebugAdapter extends LoggingDebugSession {
         // make VS Code to use 'evaluate' when hovering over source
         response.body.supportsTerminateRequest = true;
 
+        response.body.supportTerminateDebuggee = true;
+
+        response.body.supportsEvaluateForHovers = true;
+
+        response.body.supportsConditionalBreakpoints = true;
+
         response.body.supportsRestartRequest = true;
 
         //this.status = RuntimeStatus.Running;
@@ -149,6 +166,23 @@ export class STM32DebugAdapter extends LoggingDebugSession {
         }, 500);
     }
 
+    private LoadSVDInfo(path?: string) {
+        if (path) {
+            const svdFile = new File(path);
+            if (svdFile.IsFile()) {
+                try {
+                    this._svdParser.Parse(svdFile);
+                } catch (error) {
+                    GlobalEvent.emit('msg', {
+                        type: 'Warning',
+                        contentType: 'string',
+                        content: parse_svdFile_failed + svdFile.path
+                    });
+                }
+            }
+        }
+    }
+
     protected async launchRequest(response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments) {
 
         // wait until configuration has finished (and configurationDoneRequest has been called)
@@ -158,6 +192,8 @@ export class STM32DebugAdapter extends LoggingDebugSession {
         await this._configurationDone.wait();
 
         await this._runtime.Init(args);
+
+        this.LoadSVDInfo(args.svdPath);
 
         // start the program in the runtime
         await this._runtime.start();
@@ -191,7 +227,7 @@ export class STM32DebugAdapter extends LoggingDebugSession {
                     response.body.breakpoints.push({
                         source: this.CreateSource(bp.path),
                         line: line,
-                        verified: false
+                        verified: true
                     });
                 });
             });
@@ -247,13 +283,14 @@ export class STM32DebugAdapter extends LoggingDebugSession {
 
     protected async scopesRequest(response: DebugProtocol.ScopesResponse, args: DebugProtocol.ScopesArguments) {
 
-        const scopes = new Array<Scope>();
-
         await this._runtime.InitGlobalVariables();
+
+        const scopes: Scope[] = [];
 
         scopes.push(new Scope("Local", this._variableHandles.create(<Variable>{ name: 'Local', variablesReference: STM32DebugAdapter.ScopeFlag }), false));
         scopes.push(new Scope("Global", this._variableHandles.create(<Variable>{ name: 'Global', variablesReference: STM32DebugAdapter.ScopeFlag }), true));
         scopes.push(new Scope("Register", this._variableHandles.create(<Variable>{ name: 'Register', variablesReference: STM32DebugAdapter.ScopeFlag }), true));
+        scopes.push(new Scope("Peripherals", this._variableHandles.create(<Variable>{ name: 'Peripherals', variablesReference: STM32DebugAdapter.ScopeFlag }), true));
 
         response.body = {
             scopes: scopes
@@ -266,9 +303,15 @@ export class STM32DebugAdapter extends LoggingDebugSession {
         const value = this._variableHandles.get(args.variablesReference);
 
         if (value.variablesReference == STM32DebugAdapter.ScopeFlag) {
+
+            this.ClearVariables();
+
             switch (value.name) {
                 case 'Local':
                     this._runtime.getLocal(this._variableHandles).then((variables) => {
+
+                        this.AddVariables(variables);
+
                         response.body = {
                             variables: variables
                         };
@@ -277,6 +320,9 @@ export class STM32DebugAdapter extends LoggingDebugSession {
                     break;
                 case 'Global':
                     this._runtime.getGlobal(this._variableHandles).then((variables) => {
+
+                        this.AddVariables(variables);
+
                         response.body = {
                             variables: variables
                         };
@@ -287,6 +333,14 @@ export class STM32DebugAdapter extends LoggingDebugSession {
                     this._runtime.getRegister().then((variables) => {
                         response.body = {
                             variables: variables
+                        };
+                        this.sendResponse(response);
+                    });
+                    break;
+                case 'Peripherals':
+                    this.getPeripherals(this._svdParser.GetPeripheralList()).then((vars) => {
+                        response.body = {
+                            variables: vars
                         };
                         this.sendResponse(response);
                     });
@@ -306,7 +360,137 @@ export class STM32DebugAdapter extends LoggingDebugSession {
         }
     }
 
+    private _rGetBitMask(bitNum: number): number {
+        let bit = 1;
+
+        for (let i = 0; i < bitNum; i++) {
+            bit = (bit << 1) + 1;
+        }
+
+        return bit;
+    }
+
+    private async getPeripherals(perList: Peripheral[]): Promise<DebugProtocol.Variable[]> {
+
+        return new Promise(async (resolve) => {
+
+            const variables: Variable[] = [];
+
+            for (let _per of perList) {
+
+                const regVariablesList: Variable[] = [];
+                const perVariables: DebugProtocol.Variable = new Variable(_per.name, '', 0);
+
+                for (let reg of _per.registers) {
+
+                    const _var = await this._runtime.readMemory(reg.name, _per.baseAddr + reg.offset);
+
+                    if (_var.value !== 'null') {
+
+                        _var.type = 'fieldArray';
+
+                        const fieldList: { name: string, val: string }[] = [];
+                        const _v = parseInt(_var.value);
+
+                        for (let field of reg.fields) {
+
+                            const fieldVal: number = (_v >> (field.bitOffset)) & this._rGetBitMask(field.size);
+
+                            fieldList.push({
+                                name: field.name,
+                                val: '0x' + fieldVal.toString(16)
+                            });
+                        }
+
+                        _var.variablesReference = this._variableHandles.create({
+                            name: '_obj',
+                            type: 'fieldArray',
+                            value: JSON.stringify(fieldList),
+                            variablesReference: 0
+                        });
+                    } else {
+
+                        _var.type = 'integer';
+                    }
+
+                    regVariablesList.push(_var);
+                }
+
+                perVariables.value = 'address: 0x' + _per.baseAddr.toString(16);
+
+                perVariables.variablesReference = this._variableHandles.create({
+                    name: '_obj',
+                    type: 'peripheralArray',
+                    value: JSON.stringify(regVariablesList),
+                    variablesReference: 0
+                });
+
+                variables.push(perVariables);
+            }
+
+            resolve(variables);
+        });
+    }
+
+    private AddVariables(_variables: Variable[]) {
+        this._variablesList = this._variablesList.concat(_variables);
+    }
+
+    private ClearVariables() {
+        this._variablesList = [];
+    }
+
+    private _GetRealVariables(v: Variable): Variable | undefined {
+
+        let _var: Variable = v;
+
+        while (_var && _var.variablesReference !== 0) {
+            _var = this._variableHandles.get(_var.variablesReference);
+        }
+
+        return _var;
+    }
+
+    private SearchVariableByExpr(expression: string): Variable | undefined {
+
+        const nameList: string[] = expression.split('.');
+        let vStack: Variable[][] = [];
+        vStack.push(this._variablesList);
+
+        let res: Variable | undefined;
+        let temp: Variable[];
+        let nIndex: number = 0, vIndex: number;
+
+        while (vStack.length > 0 && nIndex < nameList.length) {
+
+            temp = <Variable[]>vStack.pop();
+            vIndex = temp.findIndex(v => { return v.name === nameList[nIndex]; });
+            if (vIndex !== -1) {
+                res = this._GetRealVariables(temp[vIndex]);
+                if (res) {
+                    try {
+                        const obj = JSON.parse(res.value);
+                        let nList: Variable[] = [];
+                        for (let key in obj) {
+                            nList.push(new Variable(key, JSON.stringify(obj[key]), 0));
+                        }
+                        vStack.push(nList);
+                    } catch (error) {
+                        // do nothing
+                    }
+                }
+            } else {
+                res = undefined;
+            }
+
+            nIndex++;
+        }
+
+        return res;
+    }
+
     private GetVariables(_handles: VariablesHandles, args: DebugProtocol.VariablesArguments): DebugProtocol.Variable[] {
+
         const value = this._variableHandles.get(args.variablesReference);
         let vList: DebugProtocol.Variable[] = [];
         let data = JSON.parse(value.value);
@@ -322,7 +506,7 @@ export class STM32DebugAdapter extends LoggingDebugSession {
                         (typeof v === 'string' ? 'string' : 'object');
                     variables.value = variables.type === 'string' ? v : (variables.type === 'object' ? 'Object ' + JSON.stringify(v) : v.toString());
                     variables.variablesReference = variables.type === 'object' ? _handles.create({
-                        name: 'real',
+                        name: '_obj',
                         type: 'object',
                         value: JSON.stringify(v),
                         variablesReference: 0
@@ -333,17 +517,38 @@ export class STM32DebugAdapter extends LoggingDebugSession {
                 break;
             case 'array':
                 (<any[]>data).forEach((v, index) => {
+
                     variables = new Variable(index.toString(), '');
 
                     variables.type = typeof v === 'number' ? (Number.isInteger(v) ? 'integer' : 'float') :
                         (typeof v === 'string' ? 'string' : 'object');
                     variables.value = variables.type === 'string' ? v : (variables.type === 'object' ? 'Object ' + JSON.stringify(v) : v.toString());
                     variables.variablesReference = variables.type === 'object' ? _handles.create({
-                        name: 'real',
+                        name: '_obj',
                         type: 'object',
                         value: JSON.stringify(v),
                         variablesReference: 0
                     }) : 0;
+
+                    vList.push(variables);
+                });
+                break;
+            case 'peripheralArray':
+                (<Variable[]>data).forEach((v) => {
+
+                    variables = new Variable(v.name, v.value, v.variablesReference);
+
+                    variables.type = 'array';
+
+                    vList.push(variables);
+                });
+                break;
+            case 'fieldArray':
+                (<{ name: string, val: string }[]>data).forEach((v) => {
+
+                    variables = new Variable(v.name, v.val, 0);
+
+                    variables.type = 'integer';
 
                     vList.push(variables);
                 });
@@ -386,6 +591,22 @@ export class STM32DebugAdapter extends LoggingDebugSession {
     protected async pauseRequest(response: DebugProtocol.PauseResponse, args: DebugProtocol.PauseArguments) {
         await this._runtime.pause();
         this.sendResponse(response);
+    }
+
+    protected evaluateRequest(response: DebugProtocol.EvaluateResponse, args: DebugProtocol.EvaluateArguments): void {
+        if (args.context === 'hover') {
+            let _var = this.SearchVariableByExpr(args.expression);
+            if (_var) {
+                response.body = {
+                    result: _var.value,
+                    variablesReference: _var.variablesReference,
+                    presentationHint: {
+                        kind: 'property'
+                    }
+                };
+                this.sendResponse(response);
+            }
+        }
     }
 
     private CreateSource(_path: string): Source {
