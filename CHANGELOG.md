@@ -7,3 +7,13 @@
 ## [0.0.2]
 
 - fixed some bugs
+
+## [0.0.3]
+
+### Add
+
+- add peripheral view
+
+### Fixed
+
+- fixed some bugs

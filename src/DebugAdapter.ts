@@ -361,7 +361,7 @@ export class STM32DebugAdapter extends LoggingDebugSession {
     }
 
     private _rGetBitMask(bitNum: number): number {
-        let bit = 1;
+        let bit = 0;
 
         for (let i = 0; i < bitNum; i++) {
             bit = (bit << 1) + 1;

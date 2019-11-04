@@ -29,3 +29,12 @@ The extension package is too big (about 77 MB), so you can download vsix package
 ***
 
 **Function Show**![app show](./res/icons/app_show.png)
+
+# version change
+
+## v0.0.3
+
+- **fixed some bugs**
+
+- **add peripheral view** 
+![debug_show](./res/icons/debug_view.gif)
