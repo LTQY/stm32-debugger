@@ -1,11 +1,10 @@
-import * as vscode from 'vscode';
 import {
-    Logger, logger, LoggingDebugSession, StoppedEvent, BreakpointEvent,
+    LoggingDebugSession, StoppedEvent, BreakpointEvent,
     InitializedEvent, TerminatedEvent,
-    Thread, StackFrame, Scope, Source, Handles, Variable, ContinuedEvent, OutputEvent
+     Scope, Source, Variable, ContinuedEvent, OutputEvent
 } from 'vscode-debugadapter';
 import { DebugProtocol } from 'vscode-debugprotocol';
-import { Runtime, VariablesHandles, LaunchRequestArguments, RuntimeStatus } from './Runtime';
+import { Runtime, VariablesHandles, LaunchRequestArguments, RuntimeStatus, DebugOutputData } from './Runtime';
 import { GlobalEvent } from './GlobalEvents';
 import { EventEmitter } from 'events';
 import * as path from 'path';
@@ -98,8 +97,8 @@ export class STM32DebugAdapter extends LoggingDebugSession {
         this._runtime.on('continue', (threadID) => {
             this.sendEvent(new ContinuedEvent(threadID, false));
         });
-        this._runtime.on('output', (data: { line: string, type: string | undefined }) => {
-            const e = new OutputEvent(data.line + '\n', data.type);
+        this._runtime.on('output', (data: DebugOutputData) => {
+            const e = new OutputEvent(data.txt + '\n', data.type);
             this.sendEvent(e);
         });
     }
@@ -609,11 +608,7 @@ export class STM32DebugAdapter extends LoggingDebugSession {
         }
     }
 
-    private _clearPath(_path: string): string {
-        return _path.replace(/\\+\./g, '');
-    }
-
     private CreateSource(_path: string): Source {
-        return new Source(path.basename(_path), this._clearPath(_path));
+        return new Source(path.basename(_path), _path);
     }
 }

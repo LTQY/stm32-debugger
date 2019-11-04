@@ -88,6 +88,11 @@ export enum RuntimeStatus {
     Running
 }
 
+export interface DebugOutputData {
+    type?: 'log' | 'warn' | 'error';
+    txt: string;
+}
+
 export class Runtime extends events.EventEmitter {
 
     private connectionList: Connection[] = [
@@ -108,7 +113,7 @@ export class Runtime extends events.EventEmitter {
 
     private preSetBpList: any[] = [];
 
-    on(event: 'output', listener: (data: { line: string, type: string | undefined }) => void): this;
+    on(event: 'output', listener: (data: DebugOutputData) => void): this;
     on(event: 'request_close', listener: () => void): this;
     on(event: 'stopOnEntry', listener: (threadID: number) => void): this;
     on(event: 'stopOnStep', listener: (threadID: number) => void): this;
@@ -127,7 +132,7 @@ export class Runtime extends events.EventEmitter {
         return super.once(event, listener);
     }
 
-    emit(event: 'output', data: { line: string, type: string | undefined }): boolean;
+    emit(event: 'output', data: DebugOutputData): boolean;
     emit(event: 'request_close'): boolean;
     emit(event: 'close'): boolean;
     emit(event: 'stopOnEntry', threadID: number): boolean;
@@ -178,10 +183,19 @@ export class Runtime extends events.EventEmitter {
                             content: 'Can\'t stopped on error command \'' +
                                 (<GDBConnection>this.connectionList[ConnectionIndex.GDB]).prevCommand + '\''
                         });
+                        this.emit('output', {
+                            type: 'warn',
+                            txt: 'Can\'t stopped on error command \'' +
+                                (<GDBConnection>this.connectionList[ConnectionIndex.GDB]).prevCommand + '\''
+                        });
                         break;
                 }
             } else {
                 GlobalEvent.emit('error', new Error('\'bpHitInfo\' is undefined !'));
+                this.emit('output', {
+                    type: 'error',
+                    txt: '\'bpHitInfo\' is undefined !'
+                });
             }
         });
     }
@@ -254,12 +268,11 @@ export class Runtime extends events.EventEmitter {
                     });
                 });
 
-                con.on('stdout', (line) => {
-                    this.emit('output', { line: line, type: 'log' });
-                });
-
                 con.on('stderr', (line) => {
-                    this.emit('output', { line: line, type: 'warn' });
+                    this.emit('output', {
+                        type: 'warn',
+                        txt: line
+                    });
                 });
 
                 switch (i) {
@@ -468,13 +481,9 @@ export class Runtime extends events.EventEmitter {
 
         if (!response.status.isDone && response.status.msg) {
 
-            GlobalEvent.emit('msg', <Message>{
-                type: 'Warning',
-                contentType: 'string',
-                title: 'Debugger Warning',
-                className: Runtime.name,
-                methodName: this.HandleDebugResponse.name,
-                content: response.status.msg
+            this.emit('output', {
+                type: 'warn',
+                txt: response.status.msg
             });
 
             switch (response.command) {
@@ -491,7 +500,7 @@ export class Runtime extends events.EventEmitter {
     }
 
     private Handle_Unknown(tData: TCPData) {
-        console.log('Unknown debug command TAG\'' + tData.tag + '\'');
+        this.emit('output', { type: 'warn', txt: 'Unknown debug command TAG\'' + tData.tag + '\'' });
     }
 
     async Disconnect(): Promise<void> {
