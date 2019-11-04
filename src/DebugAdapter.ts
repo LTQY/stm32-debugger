@@ -609,7 +609,11 @@ export class STM32DebugAdapter extends LoggingDebugSession {
         }
     }
 
+    private _clearPath(_path: string): string {
+        return _path.replace(/\\+\./g, '');
+    }
+
     private CreateSource(_path: string): Source {
-        return new Source(path.basename(_path), this.convertDebuggerPathToClient(_path));
+        return new Source(path.basename(_path), this._clearPath(_path));
     }
 }
