@@ -89,7 +89,7 @@ export enum RuntimeStatus {
 }
 
 export interface DebugOutputData {
-    type?: 'log' | 'warn' | 'error';
+    type?: 'stdout' | 'stderr';
     txt: string;
 }
 
@@ -184,7 +184,7 @@ export class Runtime extends events.EventEmitter {
                                 (<GDBConnection>this.connectionList[ConnectionIndex.GDB]).prevCommand + '\''
                         });
                         this.emit('output', {
-                            type: 'warn',
+                            type: 'stderr',
                             txt: 'Can\'t stopped on error command \'' +
                                 (<GDBConnection>this.connectionList[ConnectionIndex.GDB]).prevCommand + '\''
                         });
@@ -193,7 +193,7 @@ export class Runtime extends events.EventEmitter {
             } else {
                 GlobalEvent.emit('error', new Error('\'bpHitInfo\' is undefined !'));
                 this.emit('output', {
-                    type: 'error',
+                    type: 'stderr',
                     txt: '\'bpHitInfo\' is undefined !'
                 });
             }
@@ -270,7 +270,7 @@ export class Runtime extends events.EventEmitter {
 
                 con.on('stderr', (line) => {
                     this.emit('output', {
-                        type: 'warn',
+                        type: 'stderr',
                         txt: line
                     });
                 });
@@ -482,7 +482,7 @@ export class Runtime extends events.EventEmitter {
         if (!response.status.isDone && response.status.msg) {
 
             this.emit('output', {
-                type: 'warn',
+                type: 'stderr',
                 txt: response.status.msg
             });
 
@@ -500,7 +500,7 @@ export class Runtime extends events.EventEmitter {
     }
 
     private Handle_Unknown(tData: TCPData) {
-        this.emit('output', { type: 'warn', txt: 'Unknown debug command TAG\'' + tData.tag + '\'' });
+        this.emit('output', { type: 'stderr', txt: 'Unknown debug command TAG\'' + tData.tag + '\'' });
     }
 
     async Disconnect(): Promise<void> {
