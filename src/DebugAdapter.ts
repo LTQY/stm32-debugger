@@ -1,7 +1,7 @@
 import {
     LoggingDebugSession, StoppedEvent, BreakpointEvent,
     InitializedEvent, TerminatedEvent,
-     Scope, Source, Variable, ContinuedEvent, OutputEvent
+    Scope, Source, Variable, ContinuedEvent, OutputEvent
 } from 'vscode-debugadapter';
 import { DebugProtocol } from 'vscode-debugprotocol';
 import { Runtime, VariablesHandles, LaunchRequestArguments, RuntimeStatus, DebugOutputData } from './Runtime';
@@ -10,7 +10,7 @@ import { EventEmitter } from 'events';
 import * as path from 'path';
 import { SVDParer, Peripheral } from './SVDParser';
 import { File } from './File';
-import { parse_svdFile_failed } from './StringTable';
+import { parse_svdFile_failed, parse_svdFile_warning } from './StringTable';
 
 class Subject {
 
@@ -170,8 +170,17 @@ export class STM32DebugAdapter extends LoggingDebugSession {
             const svdFile = new File(path);
             if (svdFile.IsFile()) {
                 try {
-                    this._svdParser.Parse(svdFile);
+                    if (!this._svdParser.Parse(svdFile)) {
+                        GlobalEvent.emit('msg', {
+                            type: 'Warning',
+                            contentType: 'string',
+                            content: parse_svdFile_warning + svdFile.path
+                        });
+                    }
                 } catch (error) {
+
+                    console.error(error);
+
                     GlobalEvent.emit('msg', {
                         type: 'Warning',
                         contentType: 'string',

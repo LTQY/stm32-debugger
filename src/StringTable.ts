@@ -11,8 +11,13 @@ let langIndex: number = /zh-cn/.test(vscode.env.language)
 //-----------------string table----------
 
 export const parse_svdFile_failed = [
-    '无法解析的SVD文件: ',
+    'SVD文件解析错误: ',
     'Parse SVD file failed: '
+][langIndex];
+
+export const parse_svdFile_warning = [
+    'SVD 部分解析错误: ',
+    'Partial error on Parse SVD file : '
 ][langIndex];
 
 export const receive_signal = [

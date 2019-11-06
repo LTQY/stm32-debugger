@@ -38,7 +38,9 @@ export class SVDParer {
         return this.peripheralList;
     }
 
-    Parse(svdFile: File) {
+    Parse(svdFile: File): boolean {
+
+        let allDone: boolean = true;
 
         let doc = this.xmlParser.xml2js<any>(svdFile.Read());
 
@@ -46,37 +48,50 @@ export class SVDParer {
 
         (<any[]>doc.device.peripherals.peripheral).forEach(peripheral => {
 
-            const _per: Peripheral = {
-                name: peripheral.name,
-                baseAddr: parseInt(peripheral.baseAddress),
-                blockSize: parseInt(peripheral.addressBlock.size),
-                registers: []
-            };
+            if (peripheral.registers && peripheral.registers.register) {
 
-            (<any[]>peripheral.registers.register).forEach(reg => {
-
-                const _reg: PeripheralRegister = {
-                    name: reg.name,
-                    offset: parseInt(reg.addressOffset),
-                    size: parseInt(reg.size),
-                    fields: []
+                const _per: Peripheral = {
+                    name: peripheral.name,
+                    baseAddr: parseInt(peripheral.baseAddress),
+                    blockSize: 0,
+                    registers: []
                 };
 
-                (<any[]>reg.fields.field).forEach(field => {
+                (<any[]>peripheral.registers.register).forEach(reg => {
 
-                    _reg.fields.push({
-                        name: field.name,
-                        bitOffset: parseInt(field.bitOffset),
-                        size: parseInt(field.bitWidth)
-                    });
+                    try {
 
+                        const _reg: PeripheralRegister = {
+                            name: reg.name,
+                            offset: parseInt(reg.addressOffset),
+                            size: parseInt(reg.size),
+                            fields: []
+                        };
+
+                        (<any[]>reg.fields.field).forEach(field => {
+
+                            _reg.fields.push({
+                                name: field.name,
+                                bitOffset: parseInt(field.bitOffset),
+                                size: parseInt(field.bitWidth)
+                            });
+
+                        });
+
+                        _per.registers.push(_reg);
+
+                    } catch (error) {
+
+                        console.error(error);
+
+                        allDone = false;
+                    }
                 });
 
-                _per.registers.push(_reg);
-
-            });
-
-            this.peripheralList.push(_per);
+                this.peripheralList.push(_per);
+            }
         });
+
+        return allDone;
     }
 }
