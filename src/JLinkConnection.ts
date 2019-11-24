@@ -1,11 +1,11 @@
 import * as events from 'events';
-import { File } from './File';
+import { File } from '../lib/node-utility/File';
 import { ResManager } from './ResManager';
 import * as Path from 'path';
 import { JLinkConfig, LaunchConfigManager } from './LaunchConfig';
 import { GlobalEvent } from './GlobalEvents';
 import { Connection, ConnectStatus } from './Connection';
-import { ExeFile } from './Executable';
+import { ExeFile } from '../lib/node-utility/Executable';
 
 export interface JLinkError {
     state: ConnectStatus;

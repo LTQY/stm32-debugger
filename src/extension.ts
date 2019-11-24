@@ -8,10 +8,10 @@ import { ConfigHover } from './Hover';
 import { ResManager } from './ResManager';
 import { GlobalEvent } from './GlobalEvents';
 import { LaunchConfigExplorer } from './LaunchConfigView';
-import { LogManager } from './LogManager';
 import { LogAnalyzer } from './LogAnalyzer';
-import { WARNING, ERROR, INFORMATION } from './StringTable';
-
+import { WARNING, ERROR, INFORMATION, upload_hint_txt } from './StringTable';
+import { NetRequest } from '../lib/node-utility/NetRequest';
+import { LogDumper } from './LogDumper';
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -22,7 +22,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	if (ResManager.GetInstance(context).GetWorkspace()) {
 
-		LogManager.GetInstance();
+		LogDumper.getInstance();
 
 		console.log('"STM32-Debugger" is now active!');
 
@@ -40,6 +40,8 @@ export function activate(context: vscode.ExtensionContext) {
 
 		context.subscriptions.push(vscode.commands.registerCommand('Config.add.property', () => configExplorer.AddNewConfig()));
 
+		context.subscriptions.push(vscode.commands.registerCommand('debugger.uploadLog', () => LogDumper.getInstance().upload()));
+
 		GlobalEvent.emit('Extension_Launch_Done');
 
 		console.log('"STM32-Debugger" launch ok!');
@@ -55,7 +57,6 @@ export function activate(context: vscode.ExtensionContext) {
 		LogAnalyzer.on('Info', (msg) => {
 			vscode.window.showInformationMessage((msg.title ? msg.title : INFORMATION) + ' : ' + msg.text);
 		});
-
 	}
 }
 
@@ -89,13 +90,13 @@ class STM32DebugAdapterDescriptorFactory implements vscode.DebugAdapterDescripto
 
 	createDebugAdapterDescriptor(session: vscode.DebugSession, executable: vscode.DebugAdapterExecutable | undefined): vscode.ProviderResult<vscode.DebugAdapterDescriptor> {
 
-		if (!this.server) {
-			this.server = net.createServer(socket => {
-				const session = new STM32DebugAdapter();
-				session.setRunAsServer(true);
-				session.start(<NodeJS.ReadableStream>socket, socket);
-			}).listen(2233);
-		}
+		this.dispose();
+
+		this.server = net.createServer(socket => {
+			const session = new STM32DebugAdapter();
+			session.setRunAsServer(true);
+			session.start(<NodeJS.ReadableStream>socket, socket);
+		}).listen(2233);
 
 		// make VS Code connect to debug server
 		return new vscode.DebugAdapterServer((<net.AddressInfo>this.server.address()).port);
@@ -104,6 +105,40 @@ class STM32DebugAdapterDescriptorFactory implements vscode.DebugAdapterDescripto
 	dispose() {
 		if (this.server) {
 			this.server.close();
+			this.server = undefined;
 		}
 	}
+}
+
+let failedCount = 0;
+const maxCount = 5;
+
+GlobalEvent.on('debug-error', async () => {
+
+	failedCount++;
+
+	if (failedCount > maxCount) {
+
+		const uploaded = await ShowUpload();
+
+		if (uploaded) {
+			const logDumper = LogDumper.getInstance();
+			logDumper.upload();
+			logDumper.clear();
+		}
+
+		failedCount = 0;
+	}
+});
+
+setInterval(() => {
+	failedCount = 0;
+}, 5 * 6000);
+
+async function ShowUpload(): Promise<boolean> {
+
+	const option = await vscode.window.showWarningMessage(WARNING + ' : ' + upload_hint_txt.replace(/\$\{.*\}/, maxCount.toString()),
+		'submit', 'cancel');
+
+	return option === 'submit';
 }

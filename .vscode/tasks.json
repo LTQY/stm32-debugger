@@ -9,19 +9,13 @@
 			"problemMatcher": "$tsc-watch",
 			"isBackground": true,
 			"presentation": {
-				"reveal": "never"
-			},
-			"group": {
-				"kind": "build",
-				"isDefault": true
+				"reveal": "always"
 			}
 		},
 		{
 			"type": "npm",
 			"script": "compile",
-			"problemMatcher": [
-				"$tsc-watch"
-			],
+			"problemMatcher": "$tsc-watch",
 			"isBackground": true
 		}
 	]

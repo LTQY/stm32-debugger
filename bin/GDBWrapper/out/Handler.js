@@ -35,14 +35,28 @@ function HandlePort_1122(socket) {
         });
     });
     GlobalEvents_1.GlobalEvent.on('msg', (msg) => {
-        if (msg.type === 'Error') {
-            const tcpData = {
-                tag: 'Close',
-                data: JSON.stringify(msg)
-            };
-            activeEnd = true;
-            socket.end(JSON.stringify(tcpData) + GDBProtocol_1.tcpDataSeparator);
+        switch (msg.type) {
+            case 'Error':
+                {
+                    const tcpData = {
+                        tag: 'error',
+                        data: JSON.stringify(msg)
+                    };
+                    activeEnd = true;
+                    socket.end(JSON.stringify(tcpData) + GDBProtocol_1.tcpDataSeparator);
+                }
+                break;
+            default:
+                break;
         }
+    });
+    GlobalEvents_1.GlobalEvent.on('debugger-abort', (msg) => {
+        const tcpData = {
+            tag: 'close',
+            data: msg
+        };
+        activeEnd = true;
+        socket.end(JSON.stringify(tcpData) + GDBProtocol_1.tcpDataSeparator);
     });
     emitter.on('Debug_Response', (data) => {
         const response = JSON.stringify(data);
@@ -73,7 +87,7 @@ let debugProc = null;
 const exeQueue = new CommandQueue_1.ExecutableQueue();
 exeQueue.OnRunNewOne = RunCmd;
 let debugIO;
-let isRunning;
+let isCommandRunning;
 let resultList;
 let gdbParser = new GDBTextParser_1.GDBTextParser();
 function HandleDebug(content) {
@@ -162,11 +176,14 @@ function RunCmd(command, params, key) {
     }
 }
 const gdbWaitMatcher = new RegExp(/^\(gdb\)\s*$/);
+const errorMatcher = {
+    'disconnect': /Remote communication error\./i
+};
 function Debug_start() {
     return new Promise((resolve, reject) => {
         let exePath = process.cwd() + '\\res\\ARM-GNU-Tool\\bin\\arm-none-eabi-gdb.exe';
         debugProc = Process.execFile(exePath, ['--interpreter', 'mi'], { windowsHide: true });
-        isRunning = false;
+        isCommandRunning = false;
         resultList = [];
         debugProc.stdout.setEncoding('utf8');
         debugProc.stderr.setEncoding('utf8');
@@ -180,16 +197,22 @@ function Debug_start() {
         });
         debugIO.on('line', (line) => {
             GlobalEvents_1.GlobalEvent.emit('log', { line: '[Line] : ' + line });
+            for (let key in errorMatcher) {
+                if (errorMatcher[key].test(line)) {
+                    GlobalEvents_1.GlobalEvent.emit('debugger-abort', line);
+                    break;
+                }
+            }
             if (gdbWaitMatcher.test(line)) {
-                if (isRunning) {
+                if (isCommandRunning) {
                     DebugResponse();
                 }
                 else {
-                    isRunning = true;
+                    isCommandRunning = true;
                     resolve();
                 }
             }
-            else if (isRunning) {
+            else if (isCommandRunning) {
                 resultList.push(line);
             }
         });

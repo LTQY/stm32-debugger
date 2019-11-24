@@ -3,7 +3,7 @@ import { JLinkConfig, LaunchConfigManager } from "./LaunchConfig";
 import { Handles } from "vscode-debugadapter";
 import { GlobalEvent } from "./GlobalEvents";
 import { ResManager } from "./ResManager";
-import { File } from "./File";
+import { File } from "../lib/node-utility/File";
 import { ConfigHover } from "./Hover";
 import { input_config_name, name_clash, transfer_speed, transfer_speed_hit } from "./StringTable";
 
@@ -43,7 +43,7 @@ export class ConfigItem extends vscode.TreeItem {
             throw Error('Not found icon file \'' + iconName + '\'');
         }
 
-        if(name === 'name') {
+        if (name === 'name') {
             this.collapsibleState = vscode.TreeItemCollapsibleState.Collapsed;
         }
 
@@ -87,7 +87,7 @@ class LaunchConfigDataProvider implements vscode.TreeDataProvider<ConfigItem> {
     }
 
     private AddConfig(config: JLinkConfig) {
-        
+
         let item: ConfigItem = new ConfigItem('name', config.name, 'Config', config);
         let ref = this.handleMap.create(item);
         this.itemList.push(item);
@@ -272,7 +272,13 @@ export class LaunchConfigExplorer {
         vscode.window.showInputBox({
             prompt: transfer_speed,
             validateInput: (str): string | Thenable<string | null | undefined> | null | undefined => {
-                return /^[1-6][0-9]{2,3}$/.test(str) ? undefined : transfer_speed_hit;
+                if (/^[0-9]{3,}$/.test(str)) {
+                    const speed = parseInt(str);
+                    if (speed <= 10000 && speed > 100) {
+                        return undefined;
+                    }
+                }
+                return transfer_speed_hit;
             }
         }).then((speed) => {
             if (speed) {

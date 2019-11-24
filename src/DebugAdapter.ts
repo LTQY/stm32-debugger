@@ -9,7 +9,7 @@ import { GlobalEvent } from './GlobalEvents';
 import { EventEmitter } from 'events';
 import * as path from 'path';
 import { SVDParer, Peripheral } from './SVDParser';
-import { File } from './File';
+import { File } from '../lib/node-utility/File';
 import { parse_svdFile_failed, parse_svdFile_warning } from './StringTable';
 
 class Subject {

@@ -1,4 +1,4 @@
-import { File } from "./File";
+import { File } from "../lib/node-utility/File";
 import * as events from 'events';
 import * as vscode from 'vscode';
 import * as Path from 'path';
@@ -9,8 +9,8 @@ export let deviceFileName = 'JLinkDevices.xml';
 let resManager: ResManager | undefined;
 
 let prjEnvList: string[] = [
-    Path.sep + '.EIDE',
-    Path.sep + '.EIDE' + Path.sep + 'log'
+    Path.sep + '.vscode',
+    Path.sep + '.vscode' + Path.sep + 'log'
 ];
 
 let sysEnvList: string[] = [
@@ -110,7 +110,7 @@ export class ResManager extends events.EventEmitter {
     }
 
     GetProjectConfigDir(): File {
-        return this.GetDir('.EIDE');
+        return this.GetDir('.vscode');
     }
 
     GetLogDir(): File {

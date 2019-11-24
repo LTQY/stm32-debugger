@@ -1,5 +1,5 @@
 import * as xml2js from 'x2js';
-import { File } from './File';
+import { File } from '../lib/node-utility/File';
 
 export interface PeripheralField {
     name: string;

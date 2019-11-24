@@ -1,9 +1,9 @@
 import { Connection, ConnectStatus } from "./Connection";
 import * as events from 'events';
-import { ExeModule } from "./Executable";
+import { ExeModule } from "../lib/node-utility/Executable";
 import { ResManager } from "./ResManager";
 import * as path from 'path';
-import { File } from "./File";
+import { File } from "../lib/node-utility/File";
 
 export class GDBWrapperServer implements Connection {
 

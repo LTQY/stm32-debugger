@@ -22,13 +22,21 @@
 		"Debuggers"
 	],
 	"activationEvents": [
-		"*"
+		"*",
+		"onDebug",
+		"onDebugInitialConfigurations",
+		"onDebugAdapterProtocolTracker:STM32",
+		"onDebugResolve:STM32",
+		"onCommand:Config.change.property",
+		"onCommand:Config.delete.property",
+		"onCommand:Config.add.property",
+		"onCommand:debugger.uploadLog"
 	],
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/github0null/stm32-debugger.git"
 	},
-	"main": "./out/extension.js",
+	"main": "./out/src/extension.js",
 	"preview": true,
 	"homepage": "https://github.com/github0null/stm32-debugger/blob/master/README.md",
 	"contributes": {
@@ -55,6 +63,11 @@
 					"light": "./res/icons/PropertyAdded_16x.svg",
 					"dark": "./res/icons/PropertyAdded_16x.svg"
 				}
+			},
+			{
+				"command": "debugger.uploadLog",
+				"category": "stm32-debugger",
+				"title": "Upload debugger Log"
 			}
 		],
 		"menus": {

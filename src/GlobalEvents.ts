@@ -1,6 +1,6 @@
 import * as events from 'events';
 import { Message, ExceptionToMessage } from './Message';
-import { Time } from './Time';
+import { Time } from '../lib/node-utility/Time';
 
 let _globalEvent: GlobalEvent;
 
@@ -23,6 +23,8 @@ export class GlobalEvent {
     //event
     static on(event: 'Extension_Close', listener: () => void): void;
     static on(event: 'Extension_Launch_Done', listener: () => void): void;
+    
+    static on(event: 'debug-error', listener: () => void): void;
 
     static on(event: 'error', listener: (error: Error) => void): void;
     static on(event: 'msg', listener: (msg: Message) => void): void;
@@ -37,6 +39,8 @@ export class GlobalEvent {
 
     static emit(event: 'Extension_Close'): boolean;
     static emit(event: 'Extension_Launch_Done'): boolean;
+
+    static emit(event: 'debug-error'): void;
 
     static emit(event: 'error', error: Error): boolean;
     static emit(event: 'msg', msg: Message): boolean;
@@ -57,10 +61,6 @@ GlobalEvent.prepend('msg', (msg) => {
             console.info(JSON.stringify(msg));
             break;
     }
-    if (msg.appName === undefined) {
-        msg.appName = 'CL.stm32-debugger';
-    }
-    msg.timeStamp = Time.GetInstance().GetTimeStamp();
 });
 
 GlobalEvent.on('error', (err) => {

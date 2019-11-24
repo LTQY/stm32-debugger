@@ -5,7 +5,7 @@ import { TCPData, Expression, BaseBreakPoint, RunningStatus, VariablesDefine, GD
 import { JLinkConnection } from './JLinkConnection';
 import { LaunchConfigManager } from './LaunchConfig';
 import { Message } from './Message';
-import { File } from './File';
+import { File } from '../lib/node-utility/File';
 import { GlobalEvent } from './GlobalEvents';
 import { GDBConnection, OnStoppedData } from './GDBConnection';
 import * as Path from 'path';
@@ -363,17 +363,27 @@ export class Runtime extends events.EventEmitter {
             case 'Debug':
                 this.HandleDebugResponse(<GDBServerResponse>JSON.parse(tcpData.data));
                 break;
-            case 'Close':
+            case 'error':
                 {
                     GlobalEvent.emit('error', new Error('GDBWrapper Crashed, Debugger Stopped !'));
                     let gdbMsg: Message = JSON.parse(tcpData.data);
-                    gdbMsg.appName = 'CL.gdbWrapper';
                     GlobalEvent.emit('msg', gdbMsg);
+                    GlobalEvent.emit('debug-error');
+                    this.Disconnect();
+                }
+                break;
+            case 'close':
+                {
+                    GlobalEvent.emit('msg', {
+                        type: 'Warning',
+                        contentType: 'string',
+                        content: 'GDBWrapper aborted ! [msg] : ' + tcpData.data
+                    });
                     this.Disconnect();
                 }
                 break;
             default:
-                this.Handle_Unknown(tcpData);
+                this.emit('output', { type: 'stderr', txt: 'Unknown debug command TAG\'' + tcpData.tag + '\'' });
                 break;
         }
     }
@@ -505,10 +515,6 @@ export class Runtime extends events.EventEmitter {
                     break;
             }
         }
-    }
-
-    private Handle_Unknown(tData: TCPData) {
-        this.emit('output', { type: 'stderr', txt: 'Unknown debug command TAG\'' + tData.tag + '\'' });
     }
 
     async Disconnect(): Promise<void> {

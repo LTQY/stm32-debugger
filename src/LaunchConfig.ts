@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as x2js from 'x2js';
-import { File } from './File';
+import { File } from '../lib/node-utility/File';
 import { ResManager, deviceFileName } from './ResManager';
 import * as Path from 'path';
 import * as fs from 'fs';
@@ -202,7 +202,7 @@ export class LaunchConfigManager extends EventEmitter {
             };
         }
 
-        if (config.transmissionSpeed < 100 || config.transmissionSpeed >= 7000) {
+        if (config.transmissionSpeed < 100 || config.transmissionSpeed > 10000) {
             return {
                 state: 'failed',
                 tag: 'transmissionSpeed',

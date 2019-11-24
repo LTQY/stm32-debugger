@@ -2,4 +2,5 @@
 vsc-extension-quickstart.md
 *.vsix
 .vscodeignore
+/lib
 .EIDE

@@ -93,13 +93,6 @@ export class LogAnalyzer {
                 text: result.msg.content
             };
         }
-        if (result.msg.contentType === 'exception') {
-            let err: ExceptionMessage = JSON.parse(result.msg.content);
-            result.displayable = {
-                title: err.name,
-                text: err.message
-            };
-        }
     }
 
     private AnalyzeWarning(result: AnalyzeResult) {

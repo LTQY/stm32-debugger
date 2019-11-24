@@ -9,6 +9,10 @@ let langIndex: number = /zh-cn/.test(vscode.env.language)
     ? LanguageIndexs.Chinese : LanguageIndexs.English;
 
 //-----------------string table----------
+export const upload_hint_txt = [
+    '调试器在 5min 之内已经崩溃了 ${num} 次, 您可以选择提交错误日志帮助改进此插件, 抱歉',
+    'The debugger crashed ${num} times in less than 5 minutes, and you have the option of submitting an error log to help improve the plug-in, sorry'
+][langIndex];
 
 export const parse_svdFile_failed = [
     'SVD文件解析错误: ',
@@ -98,8 +102,8 @@ export const transfer_speed = [
 ][langIndex];
 
 export const transfer_speed_hit = [
-    '传输速度应该在 100 ~ 6999 之间',
-    'The transmission speed should be between 100 and 6999'
+    '传输速度应该在 100 ~ 10000 之间',
+    'The transmission speed should be between 100 and 10000'
 ][langIndex];
 
 export const is_init_registers = [
