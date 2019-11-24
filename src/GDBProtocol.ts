@@ -33,7 +33,7 @@ export interface BaseBreakPoint {
     condition?: string | null;
 }
 
-export type DataType = 'array' | 'object' | 'char_array' | 'integer' | 'float';
+export type DataType = 'array' | 'object' | 'char_array' | 'integer' | 'float' | 'original';
 
 export interface Expression {
     name: string;

@@ -68,11 +68,13 @@ export class GDBWrapperServer implements Connection {
                 this._event.emit('error', err);
             });
 
-            let exeFile: File = new File(ResManager.GetInstance().GetGDBWrapperDir().path + path.sep + GDBWrapperServer.moduleName);
+            let exeFile: File = new File(ResManager.GetInstance().GetGDBWrapperDir().path + File.sep + 'out' + File.sep + GDBWrapperServer.moduleName);
 
             const logPath: string = ResManager.GetInstance().GetLogDir().path + File.sep + GDBWrapperServer.name + '.log';
 
-            this.process.Run(exeFile.path, [logPath]);
+            this.process.Run(exeFile.path, [logPath], {
+                cwd: ResManager.GetInstance().GetGDBWrapperDir().path
+            });
         });
     }
 

@@ -291,6 +291,14 @@ export class Runtime extends events.EventEmitter {
                     case ConnectionIndex.GDBWrapper:
                         break;
                     case ConnectionIndex.JLink:
+                        {
+                            con.on('stdout', (line) => {
+                                this.emit('output', {
+                                    type: 'stdout',
+                                    txt: line
+                                });
+                            });
+                        }
                         break;
                     default:
                         break;
@@ -463,7 +471,7 @@ export class Runtime extends events.EventEmitter {
                 gdbConnection.Notify('info stack', <GDBFrame[]>response.result);
                 break;
             case 'print':
-                gdbConnection.Notify('print', response.result ? (<Expression[]>response.result)[0] : undefined);
+                gdbConnection.Notify('print', <Expression[]>response.result);
                 break;
             case 'set':
                 gdbConnection.Notify('set', response.status.isDone);
@@ -483,7 +491,7 @@ export class Runtime extends events.EventEmitter {
 
             this.emit('output', {
                 type: 'stderr',
-                txt: response.status.msg
+                txt: '[GDBWrapper] : ' + response.status.msg
             });
 
             switch (response.command) {
@@ -569,19 +577,22 @@ export class Runtime extends events.EventEmitter {
     async stack(frameStart: number, frameEnd: number): Promise<DebugProtocol.StackFrame[]> {
         return new Promise((resolve) => {
             (<GDBConnection>this.connectionList[ConnectionIndex.GDB]).Send('info stack').then((frames) => {
+
                 let stackList: DebugProtocol.StackFrame[] = [];
 
-                frames.forEach((frame) => {
-                    if (frame.id !== undefined && frame.line != undefined) {
-                        stackList.push({
-                            id: frame.id,
-                            name: frame.func,
-                            source: frame.file ? this.CreateSource(frame.file) : undefined,
-                            line: Number.parseInt(frame.line.trim()),
-                            column: 0
-                        });
-                    }
-                });
+                if (frames) {
+                    frames.forEach((frame) => {
+                        if (frame.id !== undefined && frame.line != undefined) {
+                            stackList.push({
+                                id: frame.id,
+                                name: frame.func,
+                                source: frame.file ? this.CreateSource(frame.file) : undefined,
+                                line: Number.parseInt(frame.line.trim()),
+                                column: 0
+                            });
+                        }
+                    });
+                }
 
                 resolve(stackList);
             });
@@ -631,23 +642,29 @@ export class Runtime extends events.EventEmitter {
     async getRegister(): Promise<DebugProtocol.Variable[]> {
         return new Promise((resolve) => {
             (<GDBConnection>this.connectionList[ConnectionIndex.GDB]).Send('info registers').then((valList) => {
+
                 let variablesList: DebugProtocol.Variable[] = [];
-                valList.forEach((v) => {
-                    variablesList.push({
-                        name: v.name,
-                        value: v.val,
-                        variablesReference: 0,
-                        presentationHint: {
-                            kind: 'data'
-                        }
+
+                if (valList) {
+                    valList.forEach((v) => {
+                        variablesList.push({
+                            name: v.name,
+                            value: v.val,
+                            variablesReference: 0,
+                            presentationHint: {
+                                kind: 'data'
+                            }
+                        });
                     });
-                });
+                }
+
                 resolve(variablesList);
             });
         });
     }
 
     private ExpressionToVariables(vHandler: VariablesHandles, expr: Expression): Variable {
+
         let v: DebugProtocol.Variable = new Variable(expr.name, '');
         let child: DebugProtocol.Variable;
 
@@ -679,12 +696,12 @@ export class Runtime extends events.EventEmitter {
 
                 v.variablesReference = vHandler.create(child);
                 break;
+            case 'original':
+                v.type = 'original value';
+                v.value = expr.val;
+                break;
             default:
-                GlobalEvent.emit('msg', <Message>{
-                    type: 'Warning',
-                    contentType: 'string',
-                    content: 'Unknown Expression.dataType \'' + expr.dataType + '\''
-                });
+                console.warn('unknown expr type: ' + expr.dataType);
                 break;
         }
 
@@ -692,9 +709,11 @@ export class Runtime extends events.EventEmitter {
     }
 
     private GetDataType(val: string): DataType {
-        let reg_integer = new RegExp(/^-?\s*[0-9]+$/, 'g');
-        let reg_hex = new RegExp(/^(?:0x|0X)[0-9a-fA-F]+$/, 'g');
-        let reg_float = new RegExp(/^-?\s*[0-9]+\.[0-9]+$/, 'g');
+
+        const reg_integer = /^-?\s*[0-9]+$/;
+        const reg_hex = /^(?:0x|0X)[0-9a-fA-F]+$/;
+        const reg_float = /^-?\s*[0-9]+\.[0-9]+$/;
+        const objReg = /^\s*(\{\s*\w+\s*=.+\})\s*$/;
 
         val = val.trim();
 
@@ -703,10 +722,14 @@ export class Runtime extends events.EventEmitter {
         }
 
         if (reg_float.test(val)) {
-            return "float";
+            return 'float';
         }
 
-        return 'object';
+        if (objReg.test(val)) {
+            return 'object';
+        }
+
+        return 'original';
     }
 
     async getLocal(vHandler: VariablesHandles): Promise<DebugProtocol.Variable[]> {
@@ -714,13 +737,16 @@ export class Runtime extends events.EventEmitter {
             (<GDBConnection>this.connectionList[ConnectionIndex.GDB]).Send('info locals').then((valList) => {
 
                 let variablesList: DebugProtocol.Variable[] = [];
-                valList.forEach((v) => {
-                    variablesList.push(this.ExpressionToVariables(vHandler, v));
-                });
+
+                if (valList) {
+                    valList.forEach((v) => {
+                        variablesList.push(this.ExpressionToVariables(vHandler, v));
+                    });
+                }
 
                 if (this.currentHitBp && this.currentHitBp.info.frame) {
-                    this.currentHitBp.info.frame.args.forEach((argc) => {
 
+                    this.currentHitBp.info.frame.args.forEach((argc) => {
                         variablesList.push(this.ExpressionToVariables(vHandler, {
                             name: argc.name,
                             val: argc.value,
@@ -737,9 +763,11 @@ export class Runtime extends events.EventEmitter {
     async InitGlobalVariables(): Promise<void> {
         return new Promise(async (resolve) => {
 
-            this.globalVariables = await (<GDBConnection>this.connectionList[ConnectionIndex.GDB]).Send('info variables');
+            let varList = await (<GDBConnection>this.connectionList[ConnectionIndex.GDB]).Send('info variables');
 
-            if (!this.globalVariables) {
+            if (varList) {
+                this.globalVariables = varList;
+            } else {
                 this.globalVariables = [];
             }
 
@@ -750,13 +778,13 @@ export class Runtime extends events.EventEmitter {
     async getGlobal(vHandler: Handles<DebugProtocol.Variable>): Promise<DebugProtocol.Variable[]> {
         return new Promise(async (resolve) => {
             let list: DebugProtocol.Variable[] = [];
-            let expr: NotifyData<Expression>;
+            let expr: NotifyData<Expression[]>;
 
             for (let i = 0; i < this.globalVariables.length; i++) {
                 expr = await (<GDBConnection>this.connectionList[ConnectionIndex.GDB]).Send('print', this.globalVariables[i].name);
-                if (expr) {
-                    expr.name = this.globalVariables[i].name;
-                    list.push(this.ExpressionToVariables(vHandler, expr));
+                if (expr && expr.length > 0) {
+                    expr[0].name = expr[0].name.replace(/\$[0-9]+/g, this.globalVariables[i].name);
+                    list.push(this.ExpressionToVariables(vHandler, expr[0]));
                 }
             }
 
@@ -778,7 +806,14 @@ export class Runtime extends events.EventEmitter {
         });
     }
 
-    private CreateSource(path: string): DebugProtocol.Source {
-        return new Source(Path.basename(path), path);
+    CreateSource(_path: string): Source {
+        return new Source(Path.basename(_path), this.DelRepeat(_path));
+    }
+
+    private DelRepeat(path: string): string {
+        return path.replace(/\\{2,}/g, '\\')
+            .replace(/\/{2,}/g, '/')
+            .replace(/\.\\/g, '')
+            .replace(/\.\//g, '');
     }
 }

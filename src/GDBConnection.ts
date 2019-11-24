@@ -28,12 +28,12 @@ export class GDBConnection extends events.EventEmitter implements Connection {
     Send(event: 'pause'): Promise<boolean>;
     Send(event: 'step'): Promise<boolean>;
     Send(event: 'step over'): Promise<boolean>;
-    Send(event: 'info locals'): Promise<Expression[]>;
-    Send(event: 'info variables'): Promise<VariablesDefine[]>;
-    Send(event: 'info stack'): Promise<GDBFrame[]>;
-    Send(event: 'print', variablesName: string): Promise<NotifyData<Expression>>;
+    Send(event: 'info locals'): Promise<NotifyData<Expression[]>>;
+    Send(event: 'info variables'): Promise<NotifyData<VariablesDefine[]>>;
+    Send(event: 'info stack'): Promise<NotifyData<GDBFrame[]>>;
+    Send(event: 'print', variablesName: string): Promise<NotifyData<Expression[]>>;
     Send(event: 'set', expression: string): Promise<boolean>;
-    Send(event: 'info registers'): Promise<Expression[]>;
+    Send(event: 'info registers'): Promise<NotifyData<Expression[]>>;
     Send(event: 'x', addr: string): Promise<NotifyData<Expression>>;
 
     Send(event: any, argc?: any): Promise<any> {
@@ -70,12 +70,12 @@ export class GDBConnection extends events.EventEmitter implements Connection {
     Notify(event: 'pause', ok: boolean): void;
     Notify(event: 'step', ok: boolean): void;
     Notify(event: 'step over', ok: boolean): void;
-    Notify(event: 'info locals', localVariables: Expression[]): void;
-    Notify(event: 'info variables', varList: VariablesDefine[]): void;
-    Notify(event: 'info stack', statckList: GDBFrame[]): void;
-    Notify(event: 'print', variables: NotifyData<Expression>): void;
+    Notify(event: 'info locals', localVariables: NotifyData<Expression[]>): void;
+    Notify(event: 'info variables', varList: NotifyData<VariablesDefine[]>): void;
+    Notify(event: 'info stack', statckList: NotifyData<GDBFrame[]>): void;
+    Notify(event: 'print', variables: NotifyData<Expression[]>): void;
     Notify(event: 'set', ok: boolean): void;
-    Notify(event: 'info registers', varList: Expression[]): void;
+    Notify(event: 'info registers', varList: NotifyData<Expression[]>): void;
     Notify(event: 'x', val: NotifyData<Expression>): void;
 
     Notify(event: any, argc?: any): void {

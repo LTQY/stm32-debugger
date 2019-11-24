@@ -225,15 +225,19 @@ export class STM32DebugAdapter extends LoggingDebugSession {
         let path: string = args.source.path ? args.source.path : args.source.name ? args.source.name : '';
 
         if (path === '') {
-            throw Error('Set breakpoints on a invalid file path !');
+            this.sendResponse(response);
+            console.warn('Set breakpoints on a invalid file path !');
+            return;
         }
+
+        const _source = this._runtime.CreateSource(path);
 
         if (this._runtime.GetStatus() === RuntimeStatus.Stopped) {
 
-            this._runtime.PreSetBreakpoints(path, clientLines).forEach((bp: any) => {
+            this._runtime.PreSetBreakpoints(_source.path, clientLines).forEach((bp: any) => {
                 bp.lines.forEach((line: number) => {
                     response.body.breakpoints.push({
-                        source: this.CreateSource(bp.path),
+                        source: this._runtime.CreateSource(bp.path),
                         line: line,
                         verified: true
                     });
@@ -244,9 +248,9 @@ export class STM32DebugAdapter extends LoggingDebugSession {
 
         } else {
 
-            await this._runtime.clearBreakpoints(path);
+            await this._runtime.clearBreakpoints(_source.path);
 
-            this._runtime.setBreakpoints(path, clientLines).then((values) => {
+            this._runtime.setBreakpoints(_source.path, clientLines).then((values) => {
 
                 values.forEach((bp) => {
                     if (bp.id) {
@@ -254,7 +258,7 @@ export class STM32DebugAdapter extends LoggingDebugSession {
                             id: bp.id,
                             line: bp.lineNum,
                             verified: bp.verified,
-                            source: this.CreateSource(path)
+                            source: _source
                         });
                     }
                 });
@@ -562,13 +566,7 @@ export class STM32DebugAdapter extends LoggingDebugSession {
                 });
                 break;
             default:
-                GlobalEvent.emit('msg', {
-                    type: 'Warning',
-                    contentType: 'string',
-                    content: 'Unknown value.type \'' + value.type + '\'',
-                    className: STM32DebugAdapter.name,
-                    methodName: this.GetVariables.name
-                });
+                console.warn('unknown expr type: ' + value.type);
                 break;
         }
 
@@ -615,9 +613,5 @@ export class STM32DebugAdapter extends LoggingDebugSession {
                 this.sendResponse(response);
             }
         }
-    }
-
-    private CreateSource(_path: string): Source {
-        return new Source(path.basename(_path), _path);
     }
 }

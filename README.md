@@ -32,6 +32,22 @@ The extension package is too big (about 77 MB), so you can download vsix package
 
 # version change
 
+## v0.0.4
+
+### Fixed
+
+- **fixed some bugs**
+
+- **fixed breakpoints bugs**
+
+### Other
+
+- **increase stability**
+
+- **reduce vsix package size**
+
+****
+
 ## v0.0.3
 
 - **fixed some bugs**
