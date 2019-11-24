@@ -46,6 +46,8 @@ The extension package is too big (about 77 MB), so you can download vsix package
 
 - **reduce vsix package size**
 
+- **add command: `debugger.uploadLog`, now you can upload log to remote server**
+
 ****
 
 ## v0.0.3

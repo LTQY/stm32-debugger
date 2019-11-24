@@ -1,12 +1,20 @@
 # Change Log
 
-## [0.0.1]
+## v0.0.4
 
-- First release (preview)
+### Fixed
 
-## [0.0.2]
+- **fixed some bugs**
 
-- fixed some bugs
+- **fixed breakpoints bugs**
+
+### Other
+
+- **increase stability**
+
+- **reduce vsix package size**
+
+****
 
 ## [0.0.3]
 
@@ -17,3 +25,15 @@
 ### Fixed
 
 - fixed some bugs
+
+****
+
+## [0.0.2]
+
+- fixed some bugs
+
+****
+
+## [0.0.1]
+
+- First release (preview)
