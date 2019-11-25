@@ -22,14 +22,6 @@ The extension package is too big (about 77 MB), so you can download vsix package
 
 ***
 
-## Show
-
-**Device Connect**![app show](./res/icons/device.png)
-
-***
-
-**Function Show**![app show](./res/icons/app_show.png)
-
 # version change
 
 ## v0.0.4
@@ -48,7 +40,7 @@ The extension package is too big (about 77 MB), so you can download vsix package
 
 - **add command: `debugger.uploadLog`, now you can upload log to remote server**
 
-****
+***
 
 ## v0.0.3
 
@@ -56,3 +48,17 @@ The extension package is too big (about 77 MB), so you can download vsix package
 
 - **add peripheral view** 
 ![debug_show](./res/icons/debug_view.gif)
+
+***
+
+## Show
+
+**Device Connect**![app show](./res/icons/device.png)
+
+***
+
+**Launch.json**![launch.json](./res/icons/launchView.png)
+
+**Function Show**![app show](./res/icons/app_show.png)
+
+***
