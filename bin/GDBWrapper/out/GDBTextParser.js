@@ -15,31 +15,29 @@ class GDBTextParser {
         if (command === 'print' || command === 'info locals') {
             lines = this.PreHandleStr(lines);
         }
-        lines.forEach((str, index) => {
-            if (index > 0) {
-                line = this.HandleStr(command, str);
-                /*
-                 * *: "bpHit"
-                 * =: "notify"
-                 * ~: "console"
-                 * @: "target"
-                 * &: "log"
-                 * ^: finish flag
-                 */
-                switch (line.charAt(0)) {
-                    case '*':
-                        response.runningStatus = this.ParseToRunningStatus(line);
-                        break;
-                    case '^':
-                        response.status = this.ParseExecStatus(line.substr(1));
-                        break;
-                    case '&':
-                    case '~':
-                        sList.push(line.substr(1));
-                        break;
-                    default:
-                        break;
-                }
+        lines.slice(1).forEach((str) => {
+            line = this.HandleStr(command, str);
+            /*
+             * *: "bpHit"
+             * =: "notify"
+             * ~: "console"
+             * @: "target"
+             * &: "log"
+             * ^: finish flag
+             */
+            switch (line.charAt(0)) {
+                case '*':
+                    response.runningStatus = this.ParseToRunningStatus(line);
+                    break;
+                case '^':
+                    response.status = this.ParseExecStatus(line.substr(1));
+                    break;
+                case '&':
+                case '~':
+                    sList.push(line.substr(1));
+                    break;
+                default:
+                    break;
             }
         });
         this.ParseToResult(response, sList);
@@ -146,6 +144,10 @@ class GDBTextParser {
                     break;
                 case 'break':
                     response.result = this._matcher.ParseToBreakpointInfo(lines);
+                    if (response.result === undefined) {
+                        response.status.isDone = false;
+                        response.status.msg = lines.join(' ; ');
+                    }
                     break;
                 case 'x':
                     response.result = this._matcher.ParseToMemoryValue(lines);

@@ -101,17 +101,16 @@ export class Runtime extends events.EventEmitter {
         new GDBConnection(),
     ];
 
-    private readyList: boolean[] = [];
     private launchConfig: LaunchConfig | undefined;
     private checker: LaunchConfigChecker;
     private status: RuntimeStatus = RuntimeStatus.Stopped;
 
     //gdb Data
     private globalVariables: VariablesDefine[] = [];
-    private bpList: Breakpoint[] = [];
+    private bpMap: Map<string, Breakpoint[]>;
     private currentHitBp: BreakpointHitData | undefined;
 
-    private preSetBpList: any[] = [];
+    private preSetBpMap: Map<string, Breakpoint[]>;
 
     on(event: 'output', listener: (data: DebugOutputData) => void): this;
     on(event: 'request_close', listener: () => void): this;
@@ -149,6 +148,10 @@ export class Runtime extends events.EventEmitter {
 
     constructor() {
         super();
+
+        this.preSetBpMap = new Map();
+
+        this.bpMap = new Map();
 
         this.checker = new LaunchConfigChecker();
 
@@ -225,6 +228,12 @@ export class Runtime extends events.EventEmitter {
             this.OnClose();
         });
         this.once('close', () => {
+
+            this.emit('output', {
+                type: 'stdout',
+                txt: '[stm32-debugger] : debugger exited !'
+            });
+
             GlobalEvent.emit('msg', <Message>{
                 type: 'Info',
                 contentType: 'string',
@@ -315,12 +324,19 @@ export class Runtime extends events.EventEmitter {
         }
     }
 
-    PreSetBreakpoints(path: string, lines: number[]): any[] {
-        this.preSetBpList.push({
-            path: path,
-            lines: lines
+    PreSetBreakpoints(path: string, lines: number[]): Breakpoint[] {
+
+        const bpList = lines.map<BaseBreakPoint>((line): BaseBreakPoint => {
+            return {
+                source: path,
+                lineNum: line,
+                verified: false,
+            };
         });
-        return this.preSetBpList;
+
+        this.preSetBpMap.set(path, bpList);
+
+        return bpList;
     }
 
     async Init(launchArgc: LaunchRequestArguments): Promise<void> {
@@ -339,8 +355,10 @@ export class Runtime extends events.EventEmitter {
 
         await (<GDBConnection>this.connectionList[ConnectionIndex.GDB]).Send('init', this.GetLaunchConfig().program.path);
 
-        for (let i = 0; i < this.preSetBpList.length; i++) {
-            const bpList = await this.setBreakpoints(this.preSetBpList[i].path, this.preSetBpList[i].lines);
+        for (let keyVal of this.preSetBpMap) {
+
+            const bpList = await this.setBreakpoints(keyVal[0], keyVal[1].map<number>((bp) => { return <number>bp.lineNum; }));
+
             bpList.forEach((bp) => {
                 this.emit('breakpointValidated', {
                     id: bp.id,
@@ -350,8 +368,6 @@ export class Runtime extends events.EventEmitter {
                 });
             });
         }
-
-        this.preSetBpList = [];
 
         return new Promise((resolve) => {
             resolve();
@@ -388,18 +404,6 @@ export class Runtime extends events.EventEmitter {
         }
     }
 
-    private AllReady(): boolean {
-        if (this.readyList.length >= 4) {
-            for (let i = 0; i < this.readyList.length; i++) {
-                if (!this.readyList[i]) {
-                    return false;
-                }
-            }
-            return true;
-        }
-        return false;
-    }
-
     private HandleDebugResponse(response: GDBServerResponse) {
 
         let gdbConnection: GDBConnection = (<GDBConnection>this.connectionList[ConnectionIndex.GDB]);
@@ -417,43 +421,49 @@ export class Runtime extends events.EventEmitter {
                                 content: response.status.msg
                             });
                         }
-                        this.Disconnect();
                     }
                 }
                 break;
-            case 'file':
-            case 'target remote':
-            case 'load':
-                this.readyList.push(response.status.isDone);
-                break;
-            case 'undisplay':
-                this.readyList.push(response.status.isDone);
-                if (this.AllReady()) {
+            case 'launch':
+                if (response.status.isDone) {
                     gdbConnection.Notify('launch');
                 } else {
-                    this.Disconnect();
-                }
-                break;
-            case BpHitCommand:
-                if (response.runningStatus && response.runningStatus.info.reason === 'signal_received') {
-                    GlobalEvent.emit('msg', <Message>{
-                        type: 'Warning',
-                        methodName: this.HandleDebugResponse.name,
-                        className: Runtime.name,
-                        contentType: 'object',
-                        content: JSON.stringify(response.runningStatus)
-                    });
                     GlobalEvent.emit('msg', {
                         type: 'Warning',
                         contentType: 'string',
-                        content: receive_signal + response.runningStatus.info.signal_name
+                        content: '[GDBWrapper] : gdb launch error ! ' + (response.status.msg ? response.status.msg : '')
                     });
-                    this.Disconnect();
-                } else {
-                    gdbConnection.Notify('OnStopped', {
-                        command: gdbConnection.prevCommand,
-                        hitInfo: response.runningStatus
-                    });
+                }
+                break;
+            case BpHitCommand:
+                {
+                    if (!response.status.isDone) {
+                        if (response.runningStatus && response.runningStatus.info.reason === 'signal_received') {
+                            GlobalEvent.emit('msg', <Message>{
+                                type: 'Warning',
+                                methodName: this.HandleDebugResponse.name,
+                                className: Runtime.name,
+                                contentType: 'object',
+                                content: JSON.stringify(response.runningStatus)
+                            });
+                            GlobalEvent.emit('msg', {
+                                type: 'Warning',
+                                contentType: 'string',
+                                content: receive_signal + response.runningStatus.info.signal_name
+                            });
+                        } else {
+                            GlobalEvent.emit('msg', {
+                                type: 'Warning',
+                                contentType: 'string',
+                                content: 'hit breakpoint error ! [msg] : ' + (response.status.msg ? response.status.msg : 'null')
+                            });
+                        }
+                    } else {
+                        gdbConnection.Notify('OnStopped', {
+                            command: gdbConnection.prevCommand,
+                            hitInfo: response.runningStatus
+                        });
+                    }
                 }
                 break;
             case 'break':
@@ -493,7 +503,7 @@ export class Runtime extends events.EventEmitter {
                 gdbConnection.Notify('x', response.status.isDone ? (<Expression[]>response.result)[0] : undefined);
                 break;
             default:
-                console.log('Ignore command \'' + response.command + '\'');
+                console.warn('[Runtime] : Ignore command \'' + response.command + '\'');
                 break;
         }
 
@@ -506,15 +516,36 @@ export class Runtime extends events.EventEmitter {
 
             switch (response.command) {
                 case 'init':
-                case 'file':
-                case 'target remote':
-                case 'load':
+                case 'launch':
+                case BpHitCommand:
+                case 'step':
+                case 'continue':
+                case 'step over':
                     this.Disconnect();
                     break;
                 default:
                     break;
             }
         }
+    }
+
+    getALLBreakpoints(): DebugProtocol.Breakpoint[] {
+
+        let res: DebugProtocol.Breakpoint[] = [];
+
+        for (let bpList of this.bpMap.values()) {
+
+            res = bpList.map<DebugProtocol.Breakpoint>((bp) => {
+                return {
+                    id: bp.id,
+                    line: bp.lineNum,
+                    source: this.CreateSource(bp.source),
+                    verified: bp.verified,
+                };
+            });
+        }
+
+        return res;
     }
 
     async Disconnect(): Promise<void> {
@@ -533,16 +564,22 @@ export class Runtime extends events.EventEmitter {
 
     async clearBreakpoints(path: string): Promise<void> {
 
-        for (let i = 0; i < this.bpList.length; i++) {
-            await (<GDBConnection>this.connectionList[ConnectionIndex.GDB]).Send('delete breakpoints', this.bpList[i]);
-        }
+        let bpList = this.bpMap.get(path);
 
-        this.bpList = [];
+        if (bpList) {
+
+            for (let bp of bpList) {
+                await (<GDBConnection>this.connectionList[ConnectionIndex.GDB]).Send('delete breakpoints', bp);
+            }
+
+            this.bpMap.set(path, []);
+        }
 
         return new Promise((resolve) => { resolve(); });
     }
 
     async setBreakpoint(path: string, line: number): Promise<Breakpoint> {
+
         return new Promise((resolve) => {
             let breakpoint: Breakpoint = {
                 id: 0,
@@ -551,32 +588,35 @@ export class Runtime extends events.EventEmitter {
                 verified: false
             };
             (<GDBConnection>this.connectionList[ConnectionIndex.GDB]).Send('break', breakpoint).then((res) => {
+
                 if (res) {
                     breakpoint.id = res.id;
                     breakpoint.lineNum = res.lineNum;
                     breakpoint.verified = res.verified;
-                    resolve(breakpoint);
-                } else {
-                    resolve();
                 }
+
+                resolve(breakpoint);
             });
         });
     }
 
     async setBreakpoints(path: string, lines: number[]): Promise<Breakpoint[]> {
 
-        this.bpList = [];
-        let bp: Breakpoint;
+        const _bpList: BaseBreakPoint[] = [];
 
-        for (let i = 0; i < lines.length; i++) {
-            bp = await this.setBreakpoint(path, lines[i]);
+        for (let line of lines) {
+
+            const bp = await this.setBreakpoint(path, line);
+
             if (bp) {
-                this.bpList.push(bp);
+                _bpList.push(bp);
             }
         }
 
+        this.bpMap.set(path, _bpList);
+
         return new Promise((resolve) => {
-            resolve(this.bpList);
+            resolve(_bpList);
         });
     }
 
@@ -817,9 +857,16 @@ export class Runtime extends events.EventEmitter {
     }
 
     private DelRepeat(path: string): string {
-        return path.replace(/\\{2,}/g, '\\')
+
+        const _path = File.ToUnixPath(path)
             .replace(/\/{2,}/g, '/')
-            .replace(/\.\\/g, '')
-            .replace(/\.\//g, '');
+            .replace(/\.\//g, '')
+            .replace(/\/$/, '');
+
+        if (File.sep === '/') {
+            return _path;
+        }
+
+        return _path.replace(/\//g, File.sep);
     }
 }

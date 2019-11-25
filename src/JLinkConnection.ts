@@ -23,6 +23,11 @@ export class JLinkConnection implements Connection {
     private err: Error | null = null;
     private _event: events.EventEmitter;
 
+    private readonly _errorMatcher: any = {
+        'error': /error/i,
+        'warning': /warning/i
+    };
+
     constructor() {
         this.status = ConnectStatus.Close;
         this._event = new events.EventEmitter();
@@ -75,16 +80,21 @@ export class JLinkConnection implements Connection {
         if (index !== -1 && this.jLinkServer.IsExist()) {
             let jLinkConf = confList[index];
             let checkRes = LaunchConfigManager.GetInstance().CheckConfig(jLinkConf);
+
             if (checkRes.state === 'pass') {
+
+                const connectOk = await this._connect(jLinkConf);
+
+                if(connectOk) {
+                    this._event.emit('connect');
+                } else {
+                    this._event.emit('close');
+                }
+
                 return new Promise((resolve) => {
-                    this._connect(jLinkConf).then(() => {
-                        this._event.emit('connect');
-                        resolve(true);
-                    }, () => {
-                        this._event.emit('close');
-                        resolve(false);
-                    });
+                    resolve(connectOk);
                 });
+
             } else {
                 res.tag = checkRes.tag;
                 res.message = checkRes.message;
@@ -108,9 +118,9 @@ export class JLinkConnection implements Connection {
         this.status = ConnectStatus.Close;
     }
 
-    private _connect(config: JLinkConfig): Promise<void> {
+    private _connect(config: JLinkConfig): Promise<boolean> {
 
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
 
             const exePath = this.jLinkServer.path.replace(/\\/g, '\\\\');
             const args: string[] = [];
@@ -140,26 +150,41 @@ export class JLinkConnection implements Connection {
 
                 this.status = ConnectStatus.Close;
 
-                if (exitInfo.signal === 'SIGKILL') {
-                    this.emit('close');
-                } else {
-                    if (this.err) {
-                        GlobalEvent.emit('msg', {
-                            type: 'Warning',
-                            contentType: 'object',
-                            content: JSON.stringify(this.err),
-                            className: JLinkConnection.name,
-                            methodName: this._connect.name
-                        });
-                    }
+                if (this.err) {
+                    GlobalEvent.emit('msg', {
+                        type: 'Warning',
+                        contentType: 'object',
+                        content: JSON.stringify(this.err),
+                        className: JLinkConnection.name,
+                        methodName: this._connect.name
+                    });
                 }
+
+                this.emit('close');
             });
 
             let strList: string[] = [];
 
             this.process.on('line', (line) => {
 
-                this._event.emit('stdout', '[JLinkGDBServer] : ' + line);
+                let lineType = 'info';
+
+                for (let key in this._errorMatcher) {
+                    if (this._errorMatcher[key].test(line)) {
+                        lineType = key;
+                        break;
+                    }
+                }
+
+                switch (lineType) {
+                    case 'error':
+                    case 'warning':
+                        this._event.emit('stderr', '[JLinkGDBServer] : ' + line);
+                        break;
+                    default:
+                        this._event.emit('stdout', '[JLinkGDBServer] : ' + line);
+                        break;
+                }
 
                 strList.push(line);
 
@@ -171,27 +196,27 @@ export class JLinkConnection implements Connection {
                             className: JLinkConnection.name,
                             contentType: 'string',
                             methodName: this._connect.name,
-                            content: 'JLink Connect Timeout !'
+                            content: 'JLink Connect Timeout !, please check you device'
                         });
-                        reject();
+                        resolve(false);
                     }
                 }, 5000);
 
-                if (/^J-Link is connected.$/.test(line)) {
+                if (/^J-Link is connected.$/i.test(line)) {
                     this.status = ConnectStatus.Active;
-                    resolve();
+                    resolve(true);
                 }
 
-                if (/^Connecting to J-Link failed.+$/.test(line)) {
+                if (/^Connecting to J-Link failed.+$/i.test(line)) {
                     this.status = ConnectStatus.Close;
                     GlobalEvent.emit('msg', {
                         type: 'Warning',
                         className: JLinkConnection.name,
-                        contentType: 'object',
+                        contentType: 'string',
                         methodName: this._connect.name,
-                        content: JSON.stringify(strList)
+                        content: line
                     });
-                    reject();
+                    resolve(false);
                 }
             });
 

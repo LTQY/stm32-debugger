@@ -7,10 +7,10 @@ import { DebugProtocol } from 'vscode-debugprotocol';
 import { Runtime, VariablesHandles, LaunchRequestArguments, RuntimeStatus, DebugOutputData } from './Runtime';
 import { GlobalEvent } from './GlobalEvents';
 import { EventEmitter } from 'events';
-import * as path from 'path';
 import { SVDParer, Peripheral } from './SVDParser';
 import { File } from '../lib/node-utility/File';
 import { parse_svdFile_failed, parse_svdFile_warning } from './StringTable';
+import { BaseBreakPoint } from './GDBProtocol';
 
 class Subject {
 
@@ -217,12 +217,13 @@ export class STM32DebugAdapter extends LoggingDebugSession {
 
     protected async setBreakPointsRequest(response: DebugProtocol.SetBreakpointsResponse, args: DebugProtocol.SetBreakpointsArguments) {
 
-        const clientLines = args.lines || [];
+        const _lines = args.lines || [];
+
         response.body = {
             breakpoints: []
         };
 
-        let path: string = args.source.path ? args.source.path : args.source.name ? args.source.name : '';
+        let path: string = args.source.path || args.source.name || '';
 
         if (path === '') {
             this.sendResponse(response);
@@ -234,13 +235,12 @@ export class STM32DebugAdapter extends LoggingDebugSession {
 
         if (this._runtime.GetStatus() === RuntimeStatus.Stopped) {
 
-            this._runtime.PreSetBreakpoints(_source.path, clientLines).forEach((bp: any) => {
-                bp.lines.forEach((line: number) => {
-                    response.body.breakpoints.push({
-                        source: this._runtime.CreateSource(bp.path),
-                        line: line,
-                        verified: true
-                    });
+            this._runtime.PreSetBreakpoints(_source.path, _lines).forEach((bp) => {
+                response.body.breakpoints.push({
+                    id: 0,
+                    source: this._runtime.CreateSource(bp.source),
+                    line: bp.lineNum,
+                    verified: true
                 });
             });
 
@@ -250,9 +250,9 @@ export class STM32DebugAdapter extends LoggingDebugSession {
 
             await this._runtime.clearBreakpoints(_source.path);
 
-            this._runtime.setBreakpoints(_source.path, clientLines).then((values) => {
+            this._runtime.setBreakpoints(_source.path, _lines).then((res) => {
 
-                values.forEach((bp) => {
+                res.forEach((bp) => {
                     if (bp.id) {
                         response.body.breakpoints.push({
                             id: bp.id,

@@ -20,6 +20,12 @@ class Queue {
         }
         return this.list[0];
     }
+    get(index) {
+        if (this.IsEmpty() || index >= this.list.length) {
+            return null;
+        }
+        return this.list[index];
+    }
     IsEmpty() {
         return this.list.length === 0;
     }

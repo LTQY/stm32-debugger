@@ -99,29 +99,38 @@ function HandleDebug(content) {
                         command: 'init',
                         status: { isDone: true }
                     });
-                    exeQueue.Execute('file', '"' + content.data.replace(new RegExp(/\\/, 'g'), '\\\\') + '"');
+                    const elfPath = '"' + content.data.replace(/\\/g, '\\\\') + '"';
+                    exeQueue.Execute('file', elfPath);
                 }, (err) => {
                     GlobalEvents_1.GlobalEvent.emit('error', err);
                 });
             }
             break;
         case 'launch':
-            exeQueue.Execute('target remote', 'localhost:2331');
-            exeQueue.Execute('monitor reset');
-            exeQueue.Execute('load');
-            exeQueue.Execute('undisplay', 'y');
+            exeQueue.startGroup('target remote', { groupName: content.command }, 'localhost:2331');
+            exeQueue.groupAdd('monitor reset', { groupName: content.command });
+            exeQueue.groupAdd('load', { groupName: content.command });
+            exeQueue.endGroup('undisplay', { groupName: content.command }, 'y');
             break;
         case 'break':
-            DebugAddBreakPoint(JSON.parse(content.data));
+            {
+                const bp = JSON.parse(content.data);
+                exeQueue.Execute('break', '"' + bp.source + '":' + bp.lineNum + (bp.isCondition ? ' if ' + bp.condition : ''));
+            }
             break;
         case 'break main':
             exeQueue.Execute('break', 'main');
             break;
         case 'delete breakpoints':
-            DebugDeleteBreakPoint(JSON.parse(content.data));
+            {
+                const bp = JSON.parse(content.data);
+                if (bp.id) {
+                    exeQueue.Execute('delete breakpoints', bp.id.toString(10), { name: 'delete breakpoints' });
+                }
+            }
             break;
         case 'pause':
-            exeQueue.Execute('monitor halt');
+            exeQueue.Execute('monitor halt', undefined, { name: 'pause' });
             exeQueue.Execute(GDBProtocol_1.BpHitCommand);
             break;
         case 'continue':
@@ -129,14 +138,14 @@ function HandleDebug(content) {
             exeQueue.Execute(GDBProtocol_1.BpHitCommand);
             break;
         case 'stop':
-            exeQueue.Execute(String.fromCharCode(3));
+            exeQueue.Execute(String.fromCharCode(3), undefined, { name: 'stop' });
             break;
         case 'step':
             exeQueue.Execute('step');
             exeQueue.Execute(GDBProtocol_1.BpHitCommand);
             break;
         case 'step over':
-            exeQueue.Execute('n');
+            exeQueue.Execute('n', undefined, { name: 'step over' });
             exeQueue.Execute(GDBProtocol_1.BpHitCommand);
             break;
         case 'info locals':
@@ -152,7 +161,7 @@ function HandleDebug(content) {
             exeQueue.Execute('print', content.data);
             break;
         case 'set':
-            exeQueue.Execute('set var', content.data);
+            exeQueue.Execute('set var', content.data, { name: 'set' });
             break;
         case 'info registers':
             exeQueue.Execute('info registers');
@@ -169,9 +178,9 @@ function HandleDebug(content) {
             break;
     }
 }
-function RunCmd(command, params, key) {
+function RunCmd(command, params, option) {
+    GlobalEvents_1.GlobalEvent.emit('log', { line: '[RunCommand] : ' + command + params });
     if (command !== GDBProtocol_1.BpHitCommand) {
-        GlobalEvents_1.GlobalEvent.emit('log', { line: '[RunCommand] : ' + command + params });
         debugProc.stdin.write(command + params, 'ascii');
     }
 }
@@ -218,14 +227,7 @@ function Debug_start() {
         });
     });
 }
-function DebugAddBreakPoint(bp) {
-    exeQueue.Execute('break', '"' + bp.source + '":' + bp.lineNum + (bp.isCondition ? ' if ' + bp.condition : ''));
-}
-function DebugDeleteBreakPoint(bp) {
-    if (bp.id) {
-        exeQueue.Execute('delete breakpoints', bp.id.toString(10));
-    }
-}
+let _groupRes;
 function DebugResponse() {
     const command = exeQueue.CurrentCommand();
     let res;
@@ -244,8 +246,44 @@ function DebugResponse() {
             }
         };
     }
-    SendResponse(res);
     resultList = [];
+    switch (exeQueue.GetStatus()) {
+        case CommandQueue_1.CommandStatus.GROUP_START:
+            {
+                _groupRes = {
+                    command: exeQueue.CurrentGroup(),
+                    status: {
+                        isDone: res.status.isDone,
+                        msg: res.status.msg
+                    }
+                };
+            }
+            break;
+        case CommandQueue_1.CommandStatus.GROUP_RUNNING:
+            {
+                if (_groupRes.status.isDone) {
+                    _groupRes.status.isDone = res.status.isDone;
+                }
+                if (!_groupRes.status.msg) {
+                    _groupRes.status.msg = res.status.msg;
+                }
+            }
+            break;
+        case CommandQueue_1.CommandStatus.GROUP_END:
+            {
+                if (_groupRes.status.isDone) {
+                    _groupRes.status.isDone = res.status.isDone;
+                }
+                if (!_groupRes.status.msg) {
+                    _groupRes.status.msg = res.status.msg;
+                }
+                SendResponse(_groupRes);
+            }
+            break;
+        default:
+            SendResponse(res);
+            break;
+    }
     exeQueue.NotifyRunNext();
 }
 function SendResponse(response) {

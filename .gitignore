@@ -4,3 +4,5 @@ vsc-extension-quickstart.md
 .vscodeignore
 /lib
 .EIDE
+.vscode/log
+launchConfig.json
