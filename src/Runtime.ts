@@ -393,7 +393,7 @@ export class Runtime extends events.EventEmitter {
                     GlobalEvent.emit('msg', {
                         type: 'Warning',
                         contentType: 'string',
-                        content: 'GDBWrapper aborted ! [msg] : ' + tcpData.data
+                        content: 'GDBWrapper aborted !, [MSG]: ' + tcpData.data
                     });
                     this.Disconnect();
                 }
@@ -424,6 +424,15 @@ export class Runtime extends events.EventEmitter {
                     }
                 }
                 break;
+            case 'file':
+                if (!response.status.isDone) {
+                    GlobalEvent.emit('msg', {
+                        type: 'Warning',
+                        contentType: 'string',
+                        content: '[GDBWrapper] : load file error !, [MSG]: ' + (response.status.msg || '')
+                    });
+                }
+                break;
             case 'launch':
                 if (response.status.isDone) {
                     gdbConnection.Notify('launch');
@@ -431,7 +440,7 @@ export class Runtime extends events.EventEmitter {
                     GlobalEvent.emit('msg', {
                         type: 'Warning',
                         contentType: 'string',
-                        content: '[GDBWrapper] : gdb launch error ! ' + (response.status.msg ? response.status.msg : '')
+                        content: '[GDBWrapper] : gdb launch error !, [MSG]: ' + (response.status.msg || '')
                     });
                 }
                 break;
@@ -455,7 +464,7 @@ export class Runtime extends events.EventEmitter {
                             GlobalEvent.emit('msg', {
                                 type: 'Warning',
                                 contentType: 'string',
-                                content: 'hit breakpoint error ! [msg] : ' + (response.status.msg ? response.status.msg : 'null')
+                                content: 'hit breakpoint error !, [MSG]: ' + (response.status.msg ? response.status.msg : 'null')
                             });
                         }
                     } else {
@@ -521,6 +530,7 @@ export class Runtime extends events.EventEmitter {
                 case 'step':
                 case 'continue':
                 case 'step over':
+                case 'file':
                     this.Disconnect();
                     break;
                 default:

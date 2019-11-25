@@ -122,8 +122,8 @@ class GDBTextParser {
         if (response.status.isDone && !response.runningStatus) {
             switch (response.command) {
                 case 'file':
-                    response.status.isDone = !this._matcher.IsFileNoSymbol(lines);
-                    if (!response.status.isDone) {
+                    if (this._matcher.IsFileNoSymbol(lines)) {
+                        response.status.isDone = false;
                         response.status.msg = 'No debugging symbols found !';
                     }
                     break;
@@ -167,7 +167,7 @@ class ExpressionMatcher {
             //this.matchers.set('remote_Error', new RegExp(/^.*Remote communication error.+\s*/));
             //this.matchers.set('connect_Error', new RegExp(/^\.\s*/));
             //this.matchers.set('file_Not_Found', new RegExp(/^.*\s*No such file or directory.*\s*$/));
-            'file_No_Symbol': /^.*\(No debugging symbols found.*$/,
+            'file_No_Symbol': /No debugging symbols found/i,
             'is_expression': /^.+\s*=\s*.+$/,
             //this.matchers.set('not_found_variables', new RegExp(/^No symbol .* in current context.*$/));
             //Breakpoint 1 at 0x8002454: file d:\Code Project\ARM\IOToggle\Project\USER\main.c, line 62.
