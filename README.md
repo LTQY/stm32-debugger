@@ -59,6 +59,8 @@ The extension package is too big (about 77 MB), so you can download vsix package
 
 **Launch.json**![launch.json](./res/icons/launchView.png)
 
+***
+
 **Function Show**![app show](./res/icons/app_show.png)
 
 ***
