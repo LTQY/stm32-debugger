@@ -8,8 +8,18 @@ import { GetUUID } from "./Device";
 import { Time } from "../lib/node-utility/Time";
 import { GlobalEvent } from "./GlobalEvents";
 import { NetRequest } from "../lib/node-utility/NetRequest";
+import * as zlib from 'zlib';
+import * as crypto from 'crypto';
 
 let _instance: LogDumper | undefined;
+
+interface UploadData {
+    tag: string;
+    uploadTime: string;
+    uuid: string;
+    md5: string;
+    zipData: string;
+}
 
 export class LogDumper {
 
@@ -72,6 +82,39 @@ export class LogDumper {
         }
     }
 
+    private md5(data: string): string {
+        const md5 = crypto.createHash('md5');
+        return md5.update(data).digest('hex');
+    }
+
+    createUploadData(data: string): Promise<UploadData> {
+
+        return new Promise((resolve) => {
+
+            const res: UploadData = {
+                tag: 'stm32-debugger',
+                uploadTime: Time.GetInstance().GetTimeStamp(),
+                uuid: GetUUID(),
+                md5: '',
+                zipData: ''
+            };
+
+            try {
+                zlib.gzip(data, (err, result) => {
+                    if (!err) {
+                        res.zipData = result.toString();
+                        res.md5 = this.md5(res.zipData);
+                        resolve(res);
+                    } else {
+                        resolve(res);
+                    }
+                });
+            } catch (error) {
+                resolve(res);
+            }
+        });
+    }
+
     upload() {
 
         const logList = ResManager.GetInstance().GetLogDir().GetList([/\.log$/i]);
@@ -81,10 +124,10 @@ export class LogDumper {
 
         logList.forEach(async (log) => {
 
-            const res = await netReq.Request<string>({
+            const res = await netReq.Request<UploadData, string>({
                 host: hostInfo.host,
                 port: hostInfo.port,
-                content: log.Read()
+                content: await this.createUploadData(log.Read())
             });
 
             if (res && res.success) {
