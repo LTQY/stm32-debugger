@@ -10,16 +10,9 @@ import { GlobalEvent } from "./GlobalEvents";
 import { NetRequest } from "../lib/node-utility/NetRequest";
 import * as zlib from 'zlib';
 import * as crypto from 'crypto';
+import { RemoteRequest, RemoteResponse } from "./RemoteServerProtocol";
 
 let _instance: LogDumper | undefined;
-
-interface UploadData {
-    tag: string;
-    uploadTime: string;
-    uuid: string;
-    md5: string;
-    zipData: string;
-}
 
 export class LogDumper {
 
@@ -87,23 +80,24 @@ export class LogDumper {
         return md5.update(data).digest('hex');
     }
 
-    createUploadData(data: string): Promise<UploadData> {
+    createUploadData(data: string): Promise<RemoteRequest> {
 
         return new Promise((resolve) => {
 
-            const res: UploadData = {
-                tag: 'stm32-debugger',
-                uploadTime: Time.GetInstance().GetTimeStamp(),
+            const res: RemoteRequest = {
+                appName: 'stm32-debugger',
+                version: ResManager.GetInstance().GetAppVersion(),
+                tag: 'log',
                 uuid: GetUUID(),
                 md5: '',
-                zipData: ''
+                data: ''
             };
 
             try {
                 zlib.gzip(data, (err, result) => {
                     if (!err) {
-                        res.zipData = result.toString();
-                        res.md5 = this.md5(res.zipData);
+                        res.data = result.toString();
+                        res.md5 = this.md5(res.data);
                         resolve(res);
                     } else {
                         resolve(res);
@@ -124,13 +118,14 @@ export class LogDumper {
 
         logList.forEach(async (log) => {
 
-            const res = await netReq.Request<UploadData, string>({
+            const res = await netReq.Request<RemoteRequest, RemoteResponse>({
                 host: hostInfo.host,
                 port: hostInfo.port,
-                content: await this.createUploadData(log.Read())
+                content: await this.createUploadData(log.Read()),
+                timeout: 3000
             });
 
-            if (res && res.success) {
+            if (res && res.success && res.content && res.content.success) {
                 GlobalEvent.emit('msg', {
                     type: 'Info',
                     contentType: 'string',

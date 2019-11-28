@@ -1,23 +1,14 @@
-import { Message } from './Message';
-
-export interface LogData {
-    warning?: Message[];
-    error?: Message[];
-    info?: Message[];
-    other?: Message[];
-}
-
 export interface RemoteRequest {
     appName: string;
+    version: string;
+    tag: string;
+    uuid: string;
+    md5: string;
     data: string;
-    timeStamp: string;
-    uid: string;
 }
 
 export interface RemoteResponse {
-    appName?: string;
-    version?: string;
-    activeTime: number;     //hour
-    msg: string[];          // 2 element, chinese or english
-    timeStamp: string;
+    success: boolean;
+    data?: string;
+    md5?: string;
 }

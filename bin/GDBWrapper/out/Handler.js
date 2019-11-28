@@ -235,7 +235,7 @@ function DebugResponse() {
         res = gdbParser.Parse(command, resultList);
     }
     catch (error) {
-        GlobalEvents_1.GlobalEvent.emit('log', { line: '[Error] : ' + error });
+        GlobalEvents_1.GlobalEvent.emit('log', { type: 'Error', line: '[Error] : ' + error });
     }
     if (res === undefined) {
         res = {

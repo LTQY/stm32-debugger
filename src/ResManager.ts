@@ -36,12 +36,16 @@ export class ResManager extends events.EventEmitter {
     private iconMap: Map<string, File>;
     private context: vscode.ExtensionContext | undefined;
 
+    private extension: vscode.Extension<any>;
+
     private serverInfo: any;
 
     private constructor(context?: vscode.ExtensionContext) {
         super();
+
         this.dirMap = new Map();
         this.iconMap = new Map();
+        this.extension = <vscode.Extension<any>>vscode.extensions.getExtension('CL.stm32-debugger');
 
         if (context) {
             this.context = context;
@@ -100,7 +104,6 @@ export class ResManager extends events.EventEmitter {
         };
     }
 
-
     GetIconByName(name: string): File | undefined {
         return this.iconMap.get(name);
     }
@@ -127,6 +130,10 @@ export class ResManager extends events.EventEmitter {
 
     GetJLinkDir(): File {
         return this.GetDir('JLinkServer');
+    }
+
+    GetAppVersion(): string {
+        return this.extension.packageJSON.version;
     }
 
     private GetDir(name: string): File {

@@ -728,12 +728,21 @@ export class Runtime extends events.EventEmitter {
             case 'array':
             case 'char_array':
                 v.type = 'array';
-                v.value = 'array [' + (<any[]>JSON.parse(expr.val)).length.toString() + ']';
 
-                child = new Variable('_obj', expr.val);
-                child.type = 'array';
+                try {
+                    v.value = 'array [' + (<any[]>JSON.parse(expr.val)).length.toString() + ']';
 
-                v.variablesReference = vHandler.create(child);
+                    child = new Variable('_obj', expr.val);
+                    child.type = 'array';
+
+                    v.variablesReference = vHandler.create(child);
+
+                } catch (error) {
+
+                    v.value = 'array <parse error> : ' + expr.val;
+
+                    v.variablesReference = 0;
+                }
                 break;
             case 'integer':
                 v.type = 'integer'
@@ -839,7 +848,7 @@ export class Runtime extends events.EventEmitter {
             for (let i = 0; i < this.globalVariables.length; i++) {
                 expr = await (<GDBConnection>this.connectionList[ConnectionIndex.GDB]).Send('print', this.globalVariables[i].name);
                 if (expr && expr.length > 0) {
-                    expr[0].name = expr[0].name.replace(/\$[0-9]+/g, this.globalVariables[i].name);
+                    expr[0].name = expr[0].name.replace(/\$\w+/g, this.globalVariables[i].name);
                     list.push(this.ExpressionToVariables(vHandler, expr[0]));
                 }
             }

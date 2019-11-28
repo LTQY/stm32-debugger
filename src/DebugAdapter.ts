@@ -452,75 +452,40 @@ export class STM32DebugAdapter extends LoggingDebugSession {
         this._variablesList = [];
     }
 
-    private _GetRealVariables(v: Variable): Variable | undefined {
+    private SearchVariableByExpr(expression: string): DebugProtocol.Variable | undefined {
 
-        let _var: Variable = v;
+        const nameList: string[] = expression.split('.').filter((name) => { return name !== ''; });
 
-        while (_var && _var.variablesReference !== 0) {
-            _var = this._variableHandles.get(_var.variablesReference);
-        }
+        const getVariables = (name: string): DebugProtocol.Variable | undefined => {
+            return this._variablesList.find((val) => {
+                return val.name === name;
+            });
+        };
 
-        return _var;
-    }
-
-    private SearchVariableByExpr(expression: string): Variable | undefined {
-
-        const nameList: string[] = expression.split('.');
-        let vStack: Variable[][] = [];
-        vStack.push(this._variablesList);
-
-        let res: Variable | undefined;
-        let temp: Variable[];
-        let nIndex: number = 0, vIndex: number;
-
-        while (vStack.length > 0 && nIndex < nameList.length) {
-
-            temp = <Variable[]>vStack.pop();
-            vIndex = temp.findIndex(v => { return v.name === nameList[nIndex]; });
-            if (vIndex !== -1) {
-                res = this._GetRealVariables(temp[vIndex]);
-                if (res) {
-                    try {
-                        const obj = JSON.parse(res.value);
-                        let nList: Variable[] = [];
-                        for (let key in obj) {
-                            nList.push(new Variable(key, JSON.stringify(obj[key]), 0));
-                        }
-                        vStack.push(nList);
-                    } catch (error) {
-                        // do nothing
-                    }
-                }
-            } else {
-                res = undefined;
-            }
-
-            nIndex++;
-        }
-
-        return res;
+        return getVariables(nameList[0]);
     }
 
     private GetVariables(_handles: VariablesHandles, args: DebugProtocol.VariablesArguments): DebugProtocol.Variable[] {
 
-        const value = this._variableHandles.get(args.variablesReference);
+        const _var = this._variableHandles.get(args.variablesReference);
         let vList: DebugProtocol.Variable[] = [];
-        let data = JSON.parse(value.value);
+        let data = JSON.parse(_var.value);
         let variables: DebugProtocol.Variable;
 
-        switch (value.type) {
+        switch (_var.type) {
             case 'object':
                 for (let key in data) {
-                    variables = new Variable(key, '');
-                    let v = data[key];
 
-                    variables.type = typeof v === 'number' ? (Number.isInteger(v) ? 'integer' : 'float') :
-                        (typeof v === 'string' ? 'string' : 'object');
-                    variables.value = variables.type === 'string' ? v : (variables.type === 'object' ? 'Object ' + JSON.stringify(v) : v.toString());
+                    const val = data[key];
+                    variables = new Variable(key, '');
+
+                    variables.type = typeof val === 'number' ? (Number.isInteger(val) ? 'integer' : 'float') :
+                        (typeof val === 'string' ? 'string' : 'object');
+                    variables.value = variables.type === 'string' ? val : (variables.type === 'object' ? 'Object ' + JSON.stringify(val) : val.toString());
                     variables.variablesReference = variables.type === 'object' ? _handles.create({
                         name: '_obj',
                         type: 'object',
-                        value: JSON.stringify(v),
+                        value: JSON.stringify(val),
                         variablesReference: 0
                     }) : 0;
 
@@ -566,7 +531,7 @@ export class STM32DebugAdapter extends LoggingDebugSession {
                 });
                 break;
             default:
-                console.warn('unknown expr type: ' + value.type);
+                console.warn('unknown expr type: ' + _var.type);
                 break;
         }
 
