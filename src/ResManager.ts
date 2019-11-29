@@ -23,6 +23,8 @@ let sysEnvList: string[] = [
 
 let hostFileName = 'hostInfo.json';
 
+const appName: string = 'cl.stm32-debugger';
+
 export interface HostInfo {
     host: string;
     port: number;
@@ -45,7 +47,7 @@ export class ResManager extends events.EventEmitter {
 
         this.dirMap = new Map();
         this.iconMap = new Map();
-        this.extension = <vscode.Extension<any>>vscode.extensions.getExtension('CL.stm32-debugger');
+        this.extension = <vscode.Extension<any>>vscode.extensions.getExtension(appName);
 
         if (context) {
             this.context = context;
@@ -70,6 +72,10 @@ export class ResManager extends events.EventEmitter {
         }
         resManager = new ResManager(context);
         return resManager;
+    }
+
+    static getAppName(): string {
+        return appName;
     }
 
     private InitIcons() {

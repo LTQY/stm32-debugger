@@ -16,12 +16,10 @@ let _instance: LogDumper | undefined;
 
 export class LogDumper {
 
-    static readonly TAG = 'stm32-debugger';
-
     private logFile: File;
 
     private constructor() {
-        this.logFile = new File(ResManager.GetInstance().GetLogDir().path + File.sep + LogDumper.TAG + '.log');
+        this.logFile = new File(ResManager.GetInstance().GetLogDir().path + File.sep + ResManager.getAppName() + '.log');
         this.InitDumper();
     }
 
@@ -40,7 +38,7 @@ export class LogDumper {
             dir.CreateDir(true);
         }
 
-        const data = '[' + LogDumper.TAG + '] : [' + GetUUID() + '] : log at : ' + Time.GetInstance().GetTimeStamp();
+        const data = '[' + ResManager.getAppName() + '] : [' + GetUUID() + '] : log at : ' + Time.GetInstance().GetTimeStamp();
 
         this.write(data);
     }
@@ -85,7 +83,7 @@ export class LogDumper {
         return new Promise((resolve) => {
 
             const res: RemoteRequest = {
-                appName: 'stm32-debugger',
+                appName: ResManager.getAppName(),
                 version: ResManager.GetInstance().GetAppVersion(),
                 tag: 'log',
                 uuid: GetUUID(),
@@ -122,7 +120,7 @@ export class LogDumper {
                 host: hostInfo.host,
                 port: hostInfo.port,
                 content: await this.createUploadData(log.Read()),
-                timeout: 3000
+                timeout: 2000
             });
 
             if (res && res.success && res.content && res.content.success) {

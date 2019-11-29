@@ -1,9 +1,9 @@
 {
 	"name": "stm32-debugger",
-	"displayName": "STM32-Debugger",
+	"displayName": "stm32-debugger",
 	"description": "STM32 debugger",
 	"author": {
-		"name": "CL",
+		"name": "cl",
 		"email": "2584456014@qq.com"
 	},
 	"keywords": [
@@ -11,8 +11,8 @@
 		"debugger",
 		"arm"
 	],
-	"publisher": "CL",
-	"version": "0.0.4",
+	"publisher": "cl",
+	"version": "1.0.0",
 	"engines": {
 		"vscode": "^1.36.0"
 	},
@@ -37,7 +37,6 @@
 		"url": "https://github.com/github0null/stm32-debugger.git"
 	},
 	"main": "./out/src/extension.js",
-	"preview": true,
 	"homepage": "https://github.com/github0null/stm32-debugger/blob/master/README.md",
 	"contributes": {
 		"commands": [
