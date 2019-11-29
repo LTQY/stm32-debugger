@@ -60,7 +60,7 @@ export class LaunchConfigManager extends EventEmitter {
         this.launchList = [];
 
         if (!this.configFile.IsExist()) {
-            this.AddNewConfig('New');
+            this.AddNewConfig();
         } else {
             this.Load();
         }
@@ -270,7 +270,12 @@ export class LaunchConfigManager extends EventEmitter {
     }
 
     private Load() {
-        this.launchList = JSON.parse(this.configFile.Read());
+        try {
+            this.launchList = JSON.parse(this.configFile.Read());
+        } catch (error) {
+            this.launchList = [];
+            this.AddNewConfig();
+        }
     }
 
     private Dump() {

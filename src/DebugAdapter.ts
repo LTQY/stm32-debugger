@@ -157,6 +157,7 @@ export class STM32DebugAdapter extends LoggingDebugSession {
 	 * Indicates that all breakpoints etc. have been sent to the DA and that the 'launch' can start.
 	 */
     protected configurationDoneRequest(response: DebugProtocol.ConfigurationDoneResponse, args: DebugProtocol.ConfigurationDoneArguments): void {
+        
         super.configurationDoneRequest(response, args);
 
         // notify the launchRequest that configuration has finished
@@ -199,16 +200,19 @@ export class STM32DebugAdapter extends LoggingDebugSession {
 
         await this._configurationDone.wait();
 
-        await this._runtime.Init(args);
+        const initOk = await this._runtime.Init(args);
 
-        this.LoadSVDInfo(args.svdPath);
+        if (initOk) {
 
-        // start the program in the runtime
-        await this._runtime.start();
+            this.LoadSVDInfo(args.svdPath);
 
-        this.sendResponse(response);
+            // start the program in the runtime
+            await this._runtime.start();
 
-        this._runtime.continue();
+            this.sendResponse(response);
+
+            this._runtime.continue();
+        }
     }
 
     protected async restartRequest(response: DebugProtocol.RestartResponse, args: DebugProtocol.RestartArguments) {

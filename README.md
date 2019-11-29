@@ -22,7 +22,19 @@ The extension package is too big (about 33 MB), so you can download vsix package
 
 ***
 
-# version change
+# Version Change
+
+## v1.0.0 `Official Version`
+
+### Fixed
+
+- **fixed some bugs**
+
+### Other
+
+- **increase stability**
+
+****
 
 ## v0.0.4
 

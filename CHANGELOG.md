@@ -1,5 +1,17 @@
 # Change Log
 
+## v1.0.0 `Official Version`
+
+### Fixed
+
+- **fixed some bugs**
+
+### Other
+
+- **increase stability**
+
+****
+
 ## v0.0.4
 
 ### Fixed

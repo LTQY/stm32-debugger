@@ -31,14 +31,8 @@ enum ConnectionIndex {
 
 export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
     /** An absolute path to the "program" to debug. */
-    program: string;
-
+    program?: string;
     svdPath?: string;
-}
-
-interface LaunchConfig {
-    program: File;
-    svdFile?: File;
 }
 
 interface CheckResult {
@@ -48,29 +42,35 @@ interface CheckResult {
 
 class LaunchConfigChecker {
 
-    LaunchArgsToConfig(launchArgs: LaunchRequestArguments): LaunchConfig {
-        return {
-            program: new File(launchArgs.program),
-            svdFile: launchArgs.svdPath ? new File(launchArgs.svdPath) : undefined
-        }
-    }
+    Check(config: LaunchRequestArguments): CheckResult {
 
-    Check(config: LaunchConfig): CheckResult {
         let res: CheckResult = {
             success: true,
         };
 
-        if (!config.program.IsExist()) {
+        const program = config.program ? new File(config.program) : undefined;
+        const svdFile = config.svdPath ? new File(config.svdPath) : undefined;
+
+        if (program) {
+            if (!program.IsExist()) {
+                res.success = false;
+                res.msg = {
+                    type: 'Warning',
+                    contentType: 'string',
+                    content: invalid_elf_file_path + ' !'
+                }
+            }
+        } else {
             res.success = false;
             res.msg = {
                 type: 'Warning',
                 contentType: 'string',
-                content: invalid_elf_file_path + ' !'
+                content: 'Not found \'program\' in \'launch.json\', can\'t launch debugger !'
             }
         }
 
-        if (config.svdFile) {
-            if (!config.svdFile.IsExist()) {
+        if (svdFile) {
+            if (!svdFile.IsExist()) {
                 res.success = true;
                 res.msg = {
                     type: 'Warning',
@@ -101,7 +101,6 @@ export class Runtime extends events.EventEmitter {
         new GDBConnection(),
     ];
 
-    private launchConfig: LaunchConfig | undefined;
     private checker: LaunchConfigChecker;
     private status: RuntimeStatus = RuntimeStatus.Stopped;
 
@@ -201,13 +200,6 @@ export class Runtime extends events.EventEmitter {
                 });
             }
         });
-    }
-
-    GetLaunchConfig(): LaunchConfig {
-        if (this.launchConfig === undefined) {
-            throw Error('Debug LaunchConfig is undefined');
-        }
-        return this.launchConfig;
     }
 
     private async OnClose() {
@@ -339,11 +331,9 @@ export class Runtime extends events.EventEmitter {
         return bpList;
     }
 
-    async Init(launchArgc: LaunchRequestArguments): Promise<void> {
+    async Init(launchArgc: LaunchRequestArguments): Promise<boolean> {
 
-        this.launchConfig = this.checker.LaunchArgsToConfig(launchArgc);
-
-        let checkRes = this.checker.Check(this.launchConfig);
+        let checkRes = this.checker.Check(launchArgc);
 
         if (checkRes.msg) {
             GlobalEvent.emit('msg', checkRes.msg);
@@ -351,9 +341,12 @@ export class Runtime extends events.EventEmitter {
 
         if (!checkRes.success) {
             this.Disconnect();
+            return new Promise((resolve) => {
+                resolve(false);
+            });
         }
 
-        await (<GDBConnection>this.connectionList[ConnectionIndex.GDB]).Send('init', this.GetLaunchConfig().program.path);
+        await (<GDBConnection>this.connectionList[ConnectionIndex.GDB]).Send('init', <string>launchArgc.program);
 
         for (let keyVal of this.preSetBpMap) {
 
@@ -370,7 +363,7 @@ export class Runtime extends events.EventEmitter {
         }
 
         return new Promise((resolve) => {
-            resolve();
+            resolve(true);
         });
     }
 
