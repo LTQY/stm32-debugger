@@ -75,8 +75,8 @@ export const unsupported_transmission_speed = [
 ][langIndex];
 
 export const invalid_elf_file_path = [
-    '无效的elf文件路径',
-    'Invalid elf file path'
+    '无效的调试文件路径 (支持的文件类型: .elf, .axf)',
+    'Invalid debug file path (supported file suffix: .elf, .axf)'
 ][langIndex];
 
 export const invalid_svd_file_path = [

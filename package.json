@@ -127,7 +127,7 @@
 							},
 							"program": {
 								"type": "string",
-								"description": "elf file Path (must have debug symbol)",
+								"description": "debug file Path ( file suffix : .elf, .axf ) ( must have debug symbol )",
 								"default": "undefined"
 							},
 							"svdPath": {
@@ -154,7 +154,7 @@
 						"body": {
 							"type": "STM32",
 							"request": "launch",
-							"name": "${2:Launch Program}",
+							"name": "${1:Launch Program}",
 							"program": "undefined",
 							"svdPath": "undefined"
 						}

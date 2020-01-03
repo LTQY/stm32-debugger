@@ -38,15 +38,10 @@ export class STM32DebugAdapter extends LoggingDebugSession {
     private static ScopeFlag = 1;
 
     private _runtime: Runtime;
-
     private status: RuntimeStatus;
-
     private _variableHandles = new VariablesHandles(10);
-
     private _variablesList: Variable[];
-
     private _configurationDone = new Subject();
-
     private _svdParser: SVDParer;
 
     constructor() {
