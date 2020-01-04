@@ -7,8 +7,8 @@ class ESCReplacer {
             '"': /\\"/g,
             '\'': /\\'/g,
             '\\': /\\{2}/g,
-            '': /\\n$/g,
-            '\t': /\\t/g
+            '': /(?<!\\)\\n$/g,
+            '\t': /(?<!\\)\\t/g
         };
     }
     _reset() {
@@ -17,10 +17,15 @@ class ESCReplacer {
         }
     }
     replace(str) {
-        let res = str;
+        let res = str.replace(/\b[a-zA-Z]:(?:\\{2}[^\\\/":]+)+/g, (subStr) => {
+            return subStr.replace(/\\{2}/g, '/');
+        });
         for (let key in this.escMap) {
             res = res.replace(this.escMap[key], key);
         }
+        res = res.replace(/"\b[a-zA-Z]:(?:\/[^\\\/":]+)+"/g, (subStr) => {
+            return subStr.replace(/\//g, '\\');
+        });
         this._reset();
         return res;
     }
@@ -58,12 +63,12 @@ class GDBTextParser {
             switch (command) {
                 case 'info locals':
                 case 'print':
-                    line = line.replace(/\\n$/g, '')
+                    line = line.replace(/(?<!\\)\\n$/g, '')
                         .replace(/(?<!\\)\\"/g, '"');
                     break;
                 case 'target remote':
                 case '###':
-                    line = line.replace(/\\n$/g, '');
+                    line = line.replace(/(?<!\\)\\n$/g, '');
                     break;
                 default:
                     line = this.escReplacer.replace(line);
@@ -427,6 +432,9 @@ class ExpressionMatcher {
             res = this.ToJsonString(res);
             res = res.replace(new RegExp(sepPair.first, 'g'), '[')
                 .replace(new RegExp(sepPair.second, 'g'), ']');
+            res = res.replace(/(?<!")0x[0-9a-f]+(?!")/ig, (hex) => {
+                return '"' + hex + '"';
+            });
             expr = {
                 dataType: 'array',
                 name: list[1].trim(),
@@ -508,6 +516,7 @@ class ExpressionMatcher {
         const isObjField = (_line) => {
             return /^,.*/.test(_line) || /^\w+\s+=\s+\{/.test(_line);
         };
+        // pre Handle
         let strList = _strList.map((_val) => {
             if (_val !== '') {
                 let sep;
@@ -530,7 +539,7 @@ class ExpressionMatcher {
                 _val = _val.replace(/(?<==\s+).+<repeats [0-9]+ times>$/g, (str) => {
                     return sep.start + str + sep.end;
                 });
-                _val = _val.replace(/(?<==\s+)[0-9]+\s+\'\\{2}[0-9]{3}\'$/g, (charVal) => {
+                _val = _val.replace(/(?<==\s+)[0-9]+\s+\'\\{2}.+?\'\s*$/g, (charVal) => {
                     return /^([0-9]+).*/.exec(charVal)[1];
                 });
                 return _val;

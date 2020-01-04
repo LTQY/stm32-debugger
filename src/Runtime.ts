@@ -1,7 +1,7 @@
 import * as events from 'events';
 import { DebugProtocol } from 'vscode-debugprotocol';
 import { Handles, Source, Thread, Variable } from 'vscode-debugadapter';
-import { TCPData, Expression, BaseBreakPoint, RunningStatus, VariablesDefine, GDBServerResponse, GDBFrame, BpHitCommand, GDBCommand, DataType, tcpDataSeparator } from './GDBProtocol';
+import { TCPData, Expression, BaseBreakPoint, RunningStatus, VariablesDefine, GDBServerResponse, GDBFrame, BpHitCommand, GDBCommand, DataType, tcpDataSeparator } from '../bin/GDBWrapper/src/GDBProtocol';
 import { JLinkConnection } from './JLinkConnection';
 import { LaunchConfigManager } from './LaunchConfig';
 import { Message } from './Message';
@@ -468,6 +468,9 @@ export class Runtime extends events.EventEmitter {
                     }
                 }
                 break;
+            case 'break-main':
+                // Do nothing
+                break;
             case 'break':
                 gdbConnection.Notify('break', <Breakpoint>response.result);
                 break;
@@ -502,7 +505,8 @@ export class Runtime extends events.EventEmitter {
                 gdbConnection.Notify('info registers', <Expression[]>response.result);
                 break;
             case 'x':
-                gdbConnection.Notify('x', response.status.isDone ? (<Expression[]>response.result)[0] : undefined);
+                gdbConnection.Notify('x', (response.result && (<Expression[]>response.result).length > 0)
+                    ? (<Expression[]>response.result)[0] : undefined);
                 break;
             default:
                 console.warn('[Runtime] : Ignore command \'' + response.command + '\'');

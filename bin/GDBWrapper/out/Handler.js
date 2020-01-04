@@ -101,6 +101,7 @@ function HandleDebug(content) {
                     });
                     const elfPath = '"' + content.data.replace(/\\/g, '\\\\') + '"';
                     exeQueue.Execute('file', elfPath);
+                    exeQueue.Execute('break', 'main', { name: 'break-main' });
                 }, (err) => {
                     GlobalEvents_1.GlobalEvent.emit('error', err);
                 });
@@ -117,9 +118,6 @@ function HandleDebug(content) {
                 const bp = JSON.parse(content.data);
                 exeQueue.Execute('break', '"' + bp.source + '":' + bp.lineNum + (bp.isCondition ? ' if ' + bp.condition : ''));
             }
-            break;
-        case 'break main':
-            exeQueue.Execute('break', 'main');
             break;
         case 'delete breakpoints':
             {

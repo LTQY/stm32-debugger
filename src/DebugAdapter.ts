@@ -10,7 +10,6 @@ import { EventEmitter } from 'events';
 import { SVDParer, Peripheral } from './SVDParser';
 import { File } from '../lib/node-utility/File';
 import { parse_svdFile_failed, parse_svdFile_warning } from './StringTable';
-import { BaseBreakPoint } from './GDBProtocol';
 
 class Subject {
 

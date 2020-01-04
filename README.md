@@ -24,6 +24,18 @@ The extension package is too big (about 33 MB), so you can download vsix package
 
 # Version Change
 
+## v1.0.1
+
+### Fixed
+
+- file paths bug
+
+### Add 
+
+- Stop at the entrance of the main function![stop-entry](./res/icons/stop-entry.gif)
+
+***
+
 ## v1.0.0 `Official Version`
 
 ### Fixed

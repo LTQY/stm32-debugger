@@ -4,7 +4,7 @@ import * as net from 'net';
 import {
     BaseBreakPoint, RunningStatus, Expression, VariablesDefine, GDBFrame,
     TCPData, tcpDataSeparator, DebugContent
-} from './GDBProtocol';
+} from '../bin/GDBWrapper/src/GDBProtocol';
 import { GlobalEvent } from './GlobalEvents';
 import { Message } from './Message';
 
