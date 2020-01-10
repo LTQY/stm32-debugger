@@ -6,6 +6,8 @@ STM32-Debugger is a debugger for cortex-M chips.
 
 `It should work with eide extension, but it can also work independently`
 
+### Only for Windows platform
+
 ***
 
 ## Download
